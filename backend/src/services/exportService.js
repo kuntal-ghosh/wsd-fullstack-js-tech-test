@@ -8,6 +8,7 @@ import path from 'path';
 import Export from '../models/Export.js';
 import Task from '../models/Task.js';
 import TaskFilterService from './taskFilterService.js';
+import ExportCacheService from './exportCacheService.js';
 
 /**
  * Service class for handling export operations
@@ -61,6 +62,26 @@ class ExportService {
         throw new Error('Export not found');
       }
 
+      // Generate cache key for this export
+      const cacheKey = ExportCacheService.generateCacheKey(exportDoc.filters, exportDoc.format);
+
+      // Check cache first
+      const cachedExport = await ExportCacheService.getCachedExport(cacheKey);
+      if (cachedExport) {
+        console.log('Using cached export data');
+        
+        // Save cached data to file
+        const fileInfo = await this.saveExportFile(cachedExport.data, exportDoc.format, exportId);
+        
+        // Mark as completed with cached data
+        await this.markCompleted(exportId, {
+          ...fileInfo,
+          totalRecords: cachedExport.metadata.totalRecords
+        });
+
+        return await Export.findById(exportId);
+      }
+
       // Update progress to indicate processing started
       await this.updateProgress(exportId, 10);
 
@@ -90,6 +111,24 @@ class ExportService {
 
       // Update progress
       await this.updateProgress(exportId, 75);
+
+      // Cache the export data
+      const cacheData = {
+        data: exportData,
+        metadata: {
+          totalRecords: tasks.length,
+          format: exportDoc.format,
+          generatedAt: new Date().toISOString()
+        }
+      };
+
+      // Store in cache (don't fail if caching fails)
+      try {
+        await ExportCacheService.setCachedExport(cacheKey, cacheData);
+      } catch (cacheError) {
+        console.error('Failed to cache export data:', cacheError.message);
+        // Continue with export process even if caching fails
+      }
 
       // Save file
       const fileInfo = await this.saveExportFile(exportData, exportDoc.format, exportId);
@@ -327,37 +366,35 @@ class ExportService {
   }
 
   /**
-   * Gets cached export (placeholder for future caching implementation)
+   * Gets cached export data
    * @static
    * @param {string} cacheKey - Cache key
-   * @returns {Promise<null>} Always returns null for now
+   * @returns {Promise<Object|null>} Cached export data or null if not found
    */
   static async getCachedExport(cacheKey) {
-    // Placeholder for caching implementation in Phase 4
-    return null;
+    return await ExportCacheService.getCachedExport(cacheKey);
   }
 
   /**
-   * Sets cached export (placeholder for future caching implementation)
+   * Sets cached export data
    * @static
    * @param {string} cacheKey - Cache key
    * @param {Object} exportData - Export data to cache
-   * @returns {Promise<void>}
+   * @param {number} ttl - Time to live in seconds (optional)
+   * @returns {Promise<boolean>} True if cached successfully
    */
-  static async setCachedExport(cacheKey, exportData) {
-    // Placeholder for caching implementation in Phase 4
-    return;
+  static async setCachedExport(cacheKey, exportData, ttl) {
+    return await ExportCacheService.setCachedExport(cacheKey, exportData, ttl);
   }
 
   /**
-   * Invalidates export cache (placeholder for future caching implementation)
+   * Invalidates export cache entries based on filter criteria
    * @static
    * @param {Object} filters - Filter parameters
-   * @returns {Promise<void>}
+   * @returns {Promise<Object>} Invalidation result with counts
    */
   static async invalidateExportCache(filters) {
-    // Placeholder for caching implementation in Phase 4
-    return;
+    return await ExportCacheService.invalidateExportCache(filters);
   }
 
   /**
