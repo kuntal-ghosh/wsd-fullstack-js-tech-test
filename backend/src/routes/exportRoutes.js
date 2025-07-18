@@ -176,7 +176,7 @@ router.get('/exports/:id/download', async (req, res, next) => {
 
     try {
       await fs.access(exportDoc.filePath);
-    } catch (error) {
+    } catch {
       return res.status(404).json({
         success: false,
         message: 'Export file not found on server'
@@ -185,8 +185,8 @@ router.get('/exports/:id/download', async (req, res, next) => {
 
     // Set appropriate headers
     const fileName = path.basename(exportDoc.filePath);
-    const contentType = exportDoc.format === 'csv' 
-      ? 'text/csv' 
+    const contentType = exportDoc.format === 'csv'
+      ? 'text/csv'
       : 'application/json';
 
     res.setHeader('Content-Type', contentType);

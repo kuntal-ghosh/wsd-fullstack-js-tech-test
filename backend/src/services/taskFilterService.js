@@ -78,14 +78,14 @@ class TaskFilterService {
     // Date range filtering
     if (filters.dateFrom || filters.dateTo) {
       query.createdAt = {};
-      
+
       if (filters.dateFrom) {
         const fromDate = new Date(filters.dateFrom);
         if (!isNaN(fromDate.getTime())) {
           query.createdAt.$gte = fromDate;
         }
       }
-      
+
       if (filters.dateTo) {
         const toDate = new Date(filters.dateTo);
         if (!isNaN(toDate.getTime())) {
@@ -123,15 +123,15 @@ class TaskFilterService {
    */
   static buildSortOptions(sortBy = 'createdAt', sortOrder = 'desc') {
     const sort = {};
-    
+
     // Validate and sanitize sort field
     const validSortBy = this.VALID_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
-    
+
     // Validate sort order
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
-    
+
     sort[validSortBy] = sortDirection;
-    
+
     return sort;
   }
 
@@ -166,7 +166,7 @@ class TaskFilterService {
       // Handle string values
       if (typeof value === 'string') {
         const trimmed = value.trim();
-        
+
         // Skip empty strings after trimming
         if (!trimmed) {
           return;
@@ -174,38 +174,41 @@ class TaskFilterService {
 
         // Validate specific fields
         switch (key) {
-          case 'status':
-            if (this.VALID_STATUSES.includes(trimmed)) {
-              sanitized[key] = trimmed;
-            }
-            break;
-            
-          case 'priority':
-            if (this.VALID_PRIORITIES.includes(trimmed)) {
-              sanitized[key] = trimmed;
-            }
-            break;
-            
-          case 'search':
-            // Limit search string length and escape special characters
-            if (trimmed.length <= this.MAX_SEARCH_LENGTH) {
-              sanitized[key] = this.escapeRegexCharacters(trimmed);
-            }
-            break;
-            
-          case 'dateFrom':
-          case 'dateTo':
-            // Validate date format
-            const date = new Date(trimmed);
-            if (!isNaN(date.getTime())) {
-              sanitized[key] = trimmed;
-            }
-            break;
-            
-          default:
-            // For other string fields, just trim
+        case 'status':
+          if (this.VALID_STATUSES.includes(trimmed)) {
             sanitized[key] = trimmed;
-            break;
+          }
+          break;
+
+        case 'priority':
+          if (this.VALID_PRIORITIES.includes(trimmed)) {
+            sanitized[key] = trimmed;
+          }
+          break;
+
+        case 'search': {
+          // Limit search string length and escape special characters
+          const truncatedSearch = trimmed.length > this.MAX_SEARCH_LENGTH
+            ? trimmed.substring(0, this.MAX_SEARCH_LENGTH)
+            : trimmed;
+          sanitized[key] = this.escapeRegexCharacters(truncatedSearch);
+          break;
+        }
+
+        case 'dateFrom':
+        case 'dateTo': {
+          // Validate date format
+          const date = new Date(trimmed);
+          if (!isNaN(date.getTime())) {
+            sanitized[key] = trimmed;
+          }
+          break;
+        }
+
+        default:
+          // For other string fields, just trim
+          sanitized[key] = trimmed;
+          break;
         }
       } else {
         // For non-string values, include as-is (dates, numbers, etc.)

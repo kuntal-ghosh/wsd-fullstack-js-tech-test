@@ -84,7 +84,7 @@ taskSchema.pre('save', function(next) {
       this.completedAt = null;
     }
   }
-  
+
   // Invalidate export caches when task data changes
   if (this.isModified()) {
     // Import ExportCacheService dynamically to avoid circular dependencies
@@ -97,7 +97,7 @@ taskSchema.pre('save', function(next) {
       console.error('Failed to import ExportCacheService:', error.message);
     });
   }
-  
+
   next();
 });
 

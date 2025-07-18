@@ -57,7 +57,7 @@ class ExportCacheService {
 
       // Create a deterministic string representation
       const filterString = JSON.stringify(sortedFilters);
-      
+
       // Generate hash for the filter string
       const hash = crypto
         .createHash('sha256')
@@ -96,25 +96,25 @@ class ExportCacheService {
       }
 
       const cachedData = await redisClient.get(cacheKey);
-      
+
       if (!cachedData) {
         return null;
       }
 
       // Parse cached data
       const parsedData = JSON.parse(cachedData);
-      
+
       // Extend TTL for frequently accessed items
       await redisClient.expire(cacheKey, this.DEFAULT_TTL);
-      
+
       // Reset circuit breaker on success
       this.resetCircuitBreaker();
-      
+
       return parsedData;
     } catch (error) {
       console.error('Cache retrieval error:', error.message);
       this.recordFailure();
-      
+
       // Handle JSON parsing errors gracefully
       if (error instanceof SyntaxError) {
         console.error('Cache data parsing error:', error.message);
@@ -125,7 +125,7 @@ class ExportCacheService {
           console.error('Failed to delete corrupted cache entry:', delError.message);
         }
       }
-      
+
       return null;
     }
   }
@@ -161,26 +161,26 @@ class ExportCacheService {
 
       // Store in cache with TTL
       const result = await redisClient.set(cacheKey, dataString, 'EX', ttl);
-      
+
       // Reset circuit breaker on success
       this.resetCircuitBreaker();
-      
+
       return result === 'OK';
     } catch (error) {
       console.error('Cache write error:', error.message);
       this.recordFailure();
-      
+
       // Handle specific Redis errors
       if (error.message.includes('OOM')) {
         console.error('Redis memory pressure detected, skipping cache');
         return false;
       }
-      
+
       // Re-throw size errors
       if (error.message.includes('too large')) {
         throw error;
       }
-      
+
       return false;
     }
   }
@@ -191,7 +191,7 @@ class ExportCacheService {
    * @param {Object} filters - Filter parameters to match for invalidation
    * @returns {Promise<Object>} Invalidation result with counts
    */
-  static async invalidateExportCache(filters) {
+  static async invalidateExportCache(_filters) {
     try {
       // Check if cache is available
       const isAvailable = await this.isCacheAvailable();
@@ -201,10 +201,10 @@ class ExportCacheService {
 
       // Get all export cache keys
       const allKeys = await redisClient.keys('export:*');
-      
+
       let successCount = 0;
       let errorCount = 0;
-      
+
       // For simplicity, invalidate all export caches when any filter changes
       // In a production system, you might want more sophisticated matching
       for (const key of allKeys) {
@@ -245,7 +245,7 @@ class ExportCacheService {
       // Get all keys and filter export keys
       const allKeys = await redisClient.keys('*');
       const exportKeys = allKeys.filter(key => key.startsWith('export:'));
-      
+
       let deletedCount = 0;
       for (const key of exportKeys) {
         try {
@@ -282,14 +282,14 @@ class ExportCacheService {
 
       // Get all export cache keys
       const allKeys = await redisClient.keys('export:*');
-      
+
       let expiredCount = 0;
       let deletedCount = 0;
-      
+
       for (const key of allKeys) {
         try {
           const ttl = await redisClient.ttl(key);
-          
+
           // TTL of -2 means key doesn't exist, -1 means no expiration set
           if (ttl === -2 || ttl <= 0) {
             await redisClient.del(key);
@@ -324,7 +324,7 @@ class ExportCacheService {
         // Get stats for specific key
         const ttl = await redisClient.ttl(cacheKey);
         const exists = await redisClient.exists(cacheKey);
-        
+
         return {
           exists: exists === 1,
           ttl: ttl,
@@ -334,7 +334,7 @@ class ExportCacheService {
         // Get general cache health stats
         const pingResult = await redisClient.ping();
         const exportKeys = await redisClient.keys('export:*');
-        
+
         return {
           isHealthy: pingResult === 'PONG',
           totalExportCaches: exportKeys.length,
@@ -384,7 +384,7 @@ class ExportCacheService {
   static recordFailure() {
     this.circuitBreaker.failureCount++;
     this.circuitBreaker.lastFailureTime = Date.now();
-    
+
     if (this.circuitBreaker.failureCount >= this.circuitBreaker.maxFailures) {
       this.circuitBreaker.isOpen = true;
       console.log('Circuit breaker opened due to repeated failures');
@@ -412,7 +412,7 @@ class ExportCacheService {
     if (!this.circuitBreaker.isOpen) {
       return false;
     }
-    
+
     // Check if enough time has passed to try again
     const timeSinceLastFailure = Date.now() - this.circuitBreaker.lastFailureTime;
     if (timeSinceLastFailure > this.circuitBreaker.resetTimeout) {
@@ -421,7 +421,7 @@ class ExportCacheService {
       this.circuitBreaker.failureCount = 0;
       return false;
     }
-    
+
     return true;
   }
 }

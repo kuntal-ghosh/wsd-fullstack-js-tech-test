@@ -69,10 +69,10 @@ class ExportService {
       const cachedExport = await ExportCacheService.getCachedExport(cacheKey);
       if (cachedExport) {
         console.log('Using cached export data');
-        
+
         // Save cached data to file
         const fileInfo = await this.saveExportFile(cachedExport.data, exportDoc.format, exportId);
-        
+
         // Mark as completed with cached data
         await this.markCompleted(exportId, {
           ...fileInfo,
@@ -408,7 +408,7 @@ class ExportService {
     if (typeof field !== 'string') {
       return '';
     }
-    
+
     // Escape quotes by doubling them and replace newlines with spaces
     return field.replace(/"/g, '""').replace(/\n/g, ' ');
   }
