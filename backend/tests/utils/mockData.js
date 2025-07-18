@@ -4,6 +4,7 @@
  */
 
 import Task from '../../src/models/Task.js';
+import Export from '../../src/models/Export.js';
 
 /**
  * Generate mock task data for testing
@@ -104,6 +105,17 @@ export const generateMockExport = (overrides = {}) => {
 };
 
 /**
+ * Create mock export in the database
+ * @param {Object} overrides - Properties to override in the generated export
+ * @returns {Promise<Object>} Created export document
+ */
+export const createMockExport = async (overrides = {}) => {
+  const mockExport = generateMockExport(overrides);
+  const createdExport = await Export.create(mockExport);
+  return createdExport;
+};
+
+/**
  * Generate multiple mock exports with varied data
  * @param {number} count - Number of exports to generate
  * @param {Object} baseOverrides - Base properties to apply to all exports
@@ -131,6 +143,18 @@ export const generateMockExports = (count = 5, baseOverrides = {}) => {
   }
   
   return exports;
+};
+
+/**
+ * Create multiple mock exports in the database
+ * @param {number} count - Number of exports to create
+ * @param {Object} baseOverrides - Base properties to apply to all exports
+ * @returns {Promise<Array<Object>>} Array of created export documents
+ */
+export const createMockExports = async (count = 5, baseOverrides = {}) => {
+  const mockExports = generateMockExports(count, baseOverrides);
+  const createdExports = await Export.insertMany(mockExports);
+  return createdExports;
 };
 
 /**
@@ -176,6 +200,7 @@ export const generateMockFilters = () => {
 export const cleanupMockData = async () => {
   try {
     await Task.deleteMany({});
+    await Export.deleteMany({});
     console.log('✅ Mock data cleaned up successfully');
   } catch (error) {
     console.error('❌ Mock data cleanup failed:', error.message);
