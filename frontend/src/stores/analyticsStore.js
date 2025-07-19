@@ -23,7 +23,19 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     tasksCreatedToday: 0,
     tasksCompletedToday: 0,
     recentActivity: [],
-    lastUpdated: null
+    lastUpdated: null,
+    // Added export metrics
+    exportMetrics: {
+      totalExports: 0,
+      activeExports: 0,
+      completedExports: 0,
+      failedExports: 0,
+      exportSuccessRate: 0,
+      exportsCreatedToday: 0,
+      exportsByFormat: { csv: 0, json: 0 },
+      averageExportSize: 0,
+      averageExportTime: 0
+    }
   })
 
   const loading = ref(false)
@@ -174,6 +186,25 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       // Immediately request fresh analytics when a task is updated
       socket.emit('request-analytics')
     })
+
+    // Listen for export-related events to update analytics
+    socket.on('export-list-update', (data) => {
+      console.log(
+        '📤 Export update detected, refreshing analytics...',
+        data.action
+      )
+      socket.emit('request-analytics')
+    })
+    
+    socket.on('export-completed', (data) => {
+      console.log('📤 Export completed, refreshing analytics...')
+      socket.emit('request-analytics')
+    })
+    
+    socket.on('export-failed', (data) => {
+      console.log('📤 Export failed, refreshing analytics...')
+      socket.emit('request-analytics')
+    })
   }
 
   /**
@@ -187,6 +218,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     socket.off('analytics-error')
     socket.off('notification')
     socket.off('task-update')
+    socket.off('export-list-update')
+    socket.off('export-completed')
+    socket.off('export-failed')
   }
 
   /**

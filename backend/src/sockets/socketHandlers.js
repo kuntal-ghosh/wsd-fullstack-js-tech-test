@@ -62,6 +62,9 @@ class SocketHandlers {
     try {
       const metrics = await AnalyticsService.getTaskMetrics();
       this.io.to('analytics').emit('analytics-update', metrics);
+      
+      // Check metrics thresholds for both tasks and exports
+      await this.checkMetricThresholds(metrics);
     } catch (error) {
       console.error('Error broadcasting analytics update:', error);
     }
@@ -84,15 +87,23 @@ class SocketHandlers {
 
   /**
    * Broadcasts notifications to all connected clients
-   * @param {string} message - Notification message
-   * @param {string} [type='info'] - Notification type (info, warning, error)
+   * @param {Object|string} notification - Notification object or message string
+   * @param {string} [type='info'] - Notification type (info, warning, error) when message is string
    */
-  broadcastNotification(message, type = 'info') {
-    this.io.emit('notification', {
-      message,
-      type,
-      timestamp: new Date().toISOString()
-    });
+  broadcastNotification(notification, type = 'info') {
+    // Handle both object and string parameters
+    const notificationData = typeof notification === 'string' 
+      ? {
+          message: notification,
+          type,
+          timestamp: new Date().toISOString()
+        }
+      : {
+          ...notification,
+          timestamp: notification.timestamp || new Date().toISOString()
+        };
+
+    this.io.emit('notification', notificationData);
   }
 
   /**
@@ -122,6 +133,21 @@ class SocketHandlers {
         'warning'
       );
     }
+    
+    // Add export metric thresholds
+    if (metrics.exportMetrics && metrics.exportMetrics.exportSuccessRate < 75) {
+      this.broadcastNotification(
+        `⚠️ Export success rate has dropped to ${metrics.exportMetrics.exportSuccessRate}%`,
+        'warning'
+      );
+    }
+    
+    if (metrics.exportMetrics && metrics.exportMetrics.activeExports > 10) {
+      this.broadcastNotification(
+        `📤 High number of active exports: ${metrics.exportMetrics.activeExports}`,
+        'info'
+      );
+    }
   }
 
   /**
@@ -148,7 +174,7 @@ class SocketHandlers {
    * @param {string} status - New export status
    * @param {Object} [metadata] - Additional status metadata
    */
-  broadcastExportStatusChange(exportId, status, metadata = {}) {
+  async broadcastExportStatusChange(exportId, status, metadata = {}) {
     const statusData = {
       exportId,
       status,
@@ -158,6 +184,10 @@ class SocketHandlers {
 
     this.io.to('exports').emit('export-status-change', statusData);
     console.log(`📤 Broadcasting export status change: ${exportId} - ${status}`);
+    
+    // Update analytics when export status changes
+    await AnalyticsService.exportStatusChanged(exportId, status);
+    await this.broadcastAnalyticsUpdate();
   }
 
   /**
@@ -165,7 +195,7 @@ class SocketHandlers {
    * @param {string} exportId - Export document ID
    * @param {Object} exportData - Completed export data
    */
-  broadcastExportCompleted(exportId, exportData) {
+  async broadcastExportCompleted(exportId, exportData) {
     const completionData = {
       exportId,
       status: 'completed',
@@ -179,6 +209,10 @@ class SocketHandlers {
       'success'
     );
     console.log(`📤 Broadcasting export completion: ${exportId}`);
+    
+    // Update analytics when export is completed
+    await AnalyticsService.onExportCompleted(exportData);
+    await this.broadcastAnalyticsUpdate();
   }
 
   /**
@@ -187,7 +221,7 @@ class SocketHandlers {
    * @param {string} error - Error message
    * @param {Object} [metadata] - Additional failure metadata
    */
-  broadcastExportFailed(exportId, error, metadata = {}) {
+  async broadcastExportFailed(exportId, error, metadata = {}) {
     const failureData = {
       exportId,
       status: 'failed',
@@ -202,6 +236,10 @@ class SocketHandlers {
       'error'
     );
     console.log(`📤 Broadcasting export failure: ${exportId} - ${error}`);
+    
+    // Update analytics when export fails
+    await AnalyticsService.exportStatusChanged(exportId, 'failed');
+    await this.broadcastAnalyticsUpdate();
   }
 
   /**
@@ -209,7 +247,7 @@ class SocketHandlers {
    * @param {string} action - Action performed (created, updated, deleted)
    * @param {Object} exportData - Export data
    */
-  broadcastExportListUpdate(action, exportData) {
+  async broadcastExportListUpdate(action, exportData) {
     const updateData = {
       action,
       export: exportData,
@@ -218,6 +256,12 @@ class SocketHandlers {
 
     this.io.to('exports').emit('export-list-update', updateData);
     console.log(`📤 Broadcasting export list update: ${action} - ${exportData._id}`);
+    
+    // Update analytics when export is created
+    if (action === 'created') {
+      await AnalyticsService.onExportCreated(exportData);
+      await this.broadcastAnalyticsUpdate();
+    }
   }
 }
 

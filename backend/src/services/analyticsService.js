@@ -4,6 +4,7 @@
  */
 
 import Task from '../models/Task.js';
+import Export from '../models/Export.js';
 import { redisClient } from '../config/redis.js';
 
 /**
@@ -56,7 +57,8 @@ class AnalyticsService {
       averageCompletionTime,
       tasksCreatedToday,
       tasksCompletedToday,
-      recentActivity
+      recentActivity,
+      exportMetrics
     ] = await Promise.all([
       Task.countDocuments(),
       this.getTasksByStatus(),
@@ -65,7 +67,8 @@ class AnalyticsService {
       this.getAverageCompletionTime(),
       this.getTasksCreatedToday(),
       this.getTasksCompletedToday(),
-      this.getRecentActivity()
+      this.getRecentActivity(),
+      this.calculateExportMetrics()
     ]);
 
     return {
@@ -77,6 +80,7 @@ class AnalyticsService {
       tasksCreatedToday,
       tasksCompletedToday,
       recentActivity,
+      exportMetrics,
       lastUpdated: new Date().toISOString()
     };
   }
@@ -289,6 +293,195 @@ class AnalyticsService {
     } catch (error) {
       console.error('Error fixing completed tasks data:', error);
     }
+  }
+
+  /**
+   * Calculates comprehensive export metrics
+   * @static
+   * @async
+   * @returns {Promise<Object>} Export metrics object
+   */
+  static async calculateExportMetrics() {
+    try {
+      const [
+        totalExports, 
+        activeExports, 
+        completedExports, 
+        failedExports,
+        exportsByFormat,
+        exportsCreatedToday,
+        averageExportSize,
+        averageExportTime
+      ] = await Promise.all([
+        Export.countDocuments(),
+        Export.countDocuments({ status: 'processing' }),
+        Export.countDocuments({ status: 'completed' }),
+        Export.countDocuments({ status: 'failed' }),
+        this.getExportsByFormat(),
+        this.getExportsCreatedToday(),
+        this.getAverageExportSize(),
+        this.getAverageExportTime()
+      ]);
+      
+      // Calculate export success rate based on completed vs. (completed + failed)
+      // This matches the test expectations and ignores 'processing' exports in the calculation
+      const attemptedExports = completedExports + failedExports;
+      const exportSuccessRate = attemptedExports > 0 
+        ? Math.round((completedExports / attemptedExports) * 100) 
+        : 0;
+      
+      return {
+        totalExports,
+        activeExports,
+        completedExports,
+        failedExports,
+        exportSuccessRate,
+        exportsCreatedToday,
+        exportsByFormat,
+        averageExportSize,
+        averageExportTime
+      };
+    } catch (error) {
+      console.error('Error calculating export metrics:', error);
+      // Return empty metrics if there's an error
+      return {
+        totalExports: 0,
+        activeExports: 0,
+        completedExports: 0,
+        failedExports: 0,
+        exportSuccessRate: 0,
+        exportsCreatedToday: 0,
+        exportsByFormat: { csv: 0, json: 0 },
+        averageExportSize: 0,
+        averageExportTime: 0
+      };
+    }
+  }
+
+  /**
+   * Gets distribution of exports by format
+   * @static
+   * @async
+   * @returns {Promise<Object>} Object with count for each export format
+   */
+  static async getExportsByFormat() {
+    const result = await Export.aggregate([
+      { $group: { _id: '$format', count: { $sum: 1 } } }
+    ]);
+
+    const formatCounts = { csv: 0, json: 0 };
+    result.forEach(item => {
+      if (item._id && formatCounts.hasOwnProperty(item._id)) {
+        formatCounts[item._id] = item.count;
+      }
+    });
+
+    return formatCounts;
+  }
+
+  /**
+   * Counts exports created today
+   * @static
+   * @async
+   * @returns {Promise<number>} Number of exports created today
+   */
+  static async getExportsCreatedToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return await Export.countDocuments({
+      createdAt: { $gte: today }
+    });
+  }
+
+  /**
+   * Calculates average export processing time in seconds
+   * @static
+   * @async
+   * @returns {Promise<number>} Average processing time in seconds
+   */
+  static async getAverageExportTime() {
+    const completedExports = await Export.find({
+      status: 'completed',
+      completedAt: { $exists: true, $ne: null }
+    }).select('createdAt completedAt');
+
+    if (completedExports.length === 0) return 0;
+
+    // Calculate processing times
+    const processingTimes = [];
+
+    for (const exportDoc of completedExports) {
+      if (exportDoc.completedAt && exportDoc.createdAt) {
+        const processingTime = exportDoc.completedAt.getTime() - exportDoc.createdAt.getTime();
+        if (processingTime > 0) {
+          processingTimes.push(processingTime);
+        }
+      }
+    }
+
+    if (processingTimes.length === 0) return 0;
+
+    const averageMilliseconds = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length;
+
+    // Convert to seconds and round to 1 decimal place
+    return Math.round((averageMilliseconds / 1000) * 10) / 10;
+  }
+
+  /**
+   * Calculates average export file size in KB
+   * @static
+   * @async
+   * @returns {Promise<number>} Average file size in KB
+   */
+  static async getAverageExportSize() {
+    const completedExports = await Export.find({
+      status: 'completed',
+      fileSize: { $exists: true, $gt: 0 }
+    }).select('fileSize');
+
+    if (completedExports.length === 0) return 0;
+
+    // Calculate average file size in KB
+    const totalSize = completedExports.reduce((sum, exportDoc) => sum + exportDoc.fileSize, 0);
+    const avgSizeInBytes = totalSize / completedExports.length;
+
+    // Convert to KB and round to 1 decimal place
+    return Math.round((avgSizeInBytes / 1024) * 10) / 10;
+  }
+
+  /**
+   * Updates analytics when export status changes
+   * @static
+   * @async
+   * @param {string} exportId - Export ID that changed
+   * @param {string} newStatus - New export status
+   * @returns {Promise<void>}
+   */
+  static async exportStatusChanged(exportId, newStatus) {
+    await this.invalidateCache();
+  }
+
+  /**
+   * Handles export creation events for analytics updates
+   * @static
+   * @async
+   * @param {Object} exportData - Created export data
+   * @returns {Promise<void>}
+   */
+  static async onExportCreated(exportData) {
+    await this.invalidateCache();
+  }
+
+  /**
+   * Handles export completion events for analytics updates
+   * @static
+   * @async
+   * @param {Object} exportData - Completed export data
+   * @returns {Promise<void>}
+   */
+  static async onExportCompleted(exportData) {
+    await this.invalidateCache();
   }
 }
 
