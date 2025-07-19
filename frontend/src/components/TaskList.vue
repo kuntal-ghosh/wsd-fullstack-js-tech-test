@@ -253,7 +253,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useTaskStore } from '../stores/taskStore.js'
 import { useExportStore } from '../stores/exportStore.js'
 import TaskFormDialog from './TaskFormDialog.vue'
@@ -355,7 +355,30 @@ const orderOptions = [
 ]
 
 function updateFilters() {
-  taskStore.updateFilters(filters)
+  // When basic filters change, update the task store with combined filters
+  const combinedFiltersForUpdate = {
+    ...filters,
+    // When using basic filters, clear any conflicting advanced filters
+    search: advancedFilters.search,
+    dateFrom: advancedFilters.dateFrom,
+    dateTo: advancedFilters.dateTo,
+    // Use arrays for multiple selections
+    statusArray: filters.status ? [filters.status] : advancedFilters.status,
+    priorityArray: filters.priority ? [filters.priority] : advancedFilters.priority,
+    assignee: advancedFilters.assignee,
+    tags: advancedFilters.tags
+  }
+
+  // If we're using the basic filter for status or priority, clear the advanced one
+  if (filters.status) {
+    advancedFilters.status = []
+  }
+  
+  if (filters.priority) {
+    advancedFilters.priority = []
+  }
+  
+  taskStore.updateFilters(combinedFiltersForUpdate)
 }
 
 function updateAdvancedFilters(newFilters) {
@@ -387,21 +410,66 @@ function onAdvancedExport() {
 }
 
 function handleExportCreated(exportRecord) {
-  // Add notification or display progress
-  console.log('Export created:', exportRecord)
+  // Close export dialog
   showExportDialog.value = false
+  
+  // Show notification if export was created successfully
+  if (exportRecord && exportRecord._id) {
+    // We don't need to add to the exports list because the socket will handle that
+    // Display temporary success message or toast could be added here if needed
+    console.log('Export created successfully:', exportRecord)
+    
+    // Scroll to the active exports section if it exists
+    nextTick(() => {
+      const activeExportsElement = document.querySelector('[data-test="active-exports"]')
+      if (activeExportsElement) {
+        activeExportsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+  }
 }
 
 function handleExportDownload(exportId) {
-  console.log('Export downloaded:', exportId)
+  // Find the export in the store
+  const exportItem = exportStore.exports.find(exp => exp._id === exportId)
+  if (exportItem && exportItem.filename) {
+    // Trigger the download through the store
+    exportStore.downloadExport(exportId, exportItem.filename)
+      .catch(error => {
+        console.error('Download failed:', error)
+        // Error handling is managed by the store and displayed in the ExportProgress component
+      })
+  }
 }
 
 function handleExportCancel(exportId) {
-  console.log('Export cancelled:', exportId)
+  exportStore.cancelExport(exportId)
+    .then(() => {
+      console.log('Export successfully cancelled')
+      // The UI will update automatically via the socket connection
+    })
+    .catch(error => {
+      console.error('Failed to cancel export:', error)
+    })
 }
 
 function handleExportRetry(exportId) {
-  console.log('Export retry:', exportId)
+  exportStore.retryExport(exportId)
+    .then(() => {
+      console.log('Export retry initiated')
+      // The UI will update automatically via the socket connection
+      
+      // Scroll to active exports section if it exists
+      nextTick(() => {
+        const activeExportsElement = document.querySelector('[data-test="active-exports"]')
+        if (activeExportsElement) {
+          activeExportsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
+    })
+    .catch(error => {
+      console.error('Failed to retry export:', error)
+    })
 }
 
 function editTask(task) {
