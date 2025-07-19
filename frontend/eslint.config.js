@@ -18,7 +18,9 @@ export default [
         navigator: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
-        fetch: 'readonly'
+        fetch: 'readonly',
+        Blob: 'readonly',
+        global: 'readonly'
       }
     },
     rules: {

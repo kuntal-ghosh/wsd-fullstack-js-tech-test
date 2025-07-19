@@ -175,6 +175,55 @@ class ApiClient {
   async getHealth() {
     return this.get('/health')
   }
+
+  /**
+   * Retrieves all exports
+   * @async
+   * @returns {Promise<Object>} Exports list response
+   */
+  async getExports() {
+    return this.get('/exports')
+  }
+
+  /**
+   * Retrieves a specific export by ID
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Export data
+   */
+  async getExport(id) {
+    return this.get(`/exports/${id}`)
+  }
+
+  /**
+   * Creates a new export request
+   * @async
+   * @param {Object} exportConfig - Export configuration
+   * @returns {Promise<Object>} Created export response
+   */
+  async createExport(exportConfig) {
+    return this.post('/exports', exportConfig)
+  }
+
+  /**
+   * Cancels an export by ID
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Cancellation response
+   */
+  async cancelExport(id) {
+    return this.delete(`/exports/${id}`)
+  }
+
+  /**
+   * Retries a failed export
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Retry response
+   */
+  async retryExport(id) {
+    return this.post(`/exports/${id}/retry`)
+  }
 }
 
 export default new ApiClient()
