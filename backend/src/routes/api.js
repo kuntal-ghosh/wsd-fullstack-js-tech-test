@@ -6,6 +6,7 @@
 import express from 'express';
 import Task from '../models/Task.js';
 import AnalyticsService from '../services/analyticsService.js';
+import TaskFilterService from '../services/taskFilterService.js';
 import { redisClient } from '../config/redis.js';
 
 const router = express.Router();
@@ -35,6 +36,9 @@ export const setSocketHandlers = (handlers) => {
  * @param {number} [req.query.limit=10] - Number of tasks per page
  * @param {string} [req.query.status] - Filter by task status
  * @param {string} [req.query.priority] - Filter by task priority
+ * @param {string} [req.query.search] - Text search across title and description
+ * @param {string} [req.query.dateFrom] - Filter tasks from this date (ISO string)
+ * @param {string} [req.query.dateTo] - Filter tasks until this date (ISO string)
  * @param {string} [req.query.sortBy=createdAt] - Field to sort by
  * @param {string} [req.query.sortOrder=desc] - Sort order (asc/desc)
  * @returns {Object} Paginated tasks with metadata
@@ -46,16 +50,24 @@ router.get('/tasks', async (req, res, next) => {
       limit = 10,
       status,
       priority,
+      search,
+      dateFrom,
+      dateTo,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
 
-    const query = {};
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
+    // Sanitize and build filter query using TaskFilterService
+    const filters = TaskFilterService.sanitizeFilters({
+      status,
+      priority,
+      search,
+      dateFrom,
+      dateTo
+    });
 
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    const query = TaskFilterService.buildFilterQuery(filters);
+    const sort = TaskFilterService.buildSortOptions(sortBy, sortOrder);
 
     const tasks = await Task.find(query)
       .sort(sort)
