@@ -14,6 +14,19 @@
     <div class="d-flex align-center mb-4">
       <h2 class="page-title">Tasks</h2>
       <v-spacer></v-spacer>
+      
+      <!-- Export Button -->
+      <v-btn
+        color="info"
+        class="mr-2"
+        prepend-icon="mdi-download"
+        @click="showExportDialog = true"
+        data-test="export-button"
+        :disabled="taskStore.tasks.length === 0"
+      >
+        Export
+      </v-btn>
+      
       <v-btn color="primary" @click="showCreateDialog = true">
         <v-icon left>mdi-plus</v-icon>
         New Task
@@ -60,6 +73,74 @@
         </v-row>
       </v-card-text>
     </v-card>
+
+    <!-- Advanced Filters Section -->
+    <v-expansion-panels class="mb-4" data-test="advanced-filter-panel-container">
+      <v-expansion-panel>
+        <v-expansion-panel-title>
+          <v-icon class="mr-2">mdi-filter-variant</v-icon>
+          Advanced Filters
+          <v-chip
+            v-if="advancedFilterCount > 0"
+            color="primary"
+            size="small"
+            class="ml-2"
+            data-test="advanced-filter-count"
+          >
+            {{ advancedFilterCount }}
+          </v-chip>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <advanced-filter-panel
+            v-model="advancedFilters"
+            @update:model-value="updateAdvancedFilters"
+            @export="onAdvancedExport"
+            :export-loading="exportStore.loading"
+            data-test="advanced-filter-panel"
+          />
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
+    <!-- Active Export Notifications -->
+    <div v-if="exportStore.activeExports.length > 0" class="mb-4" data-test="active-exports">
+      <h3 class="text-subtitle-1 mb-2">Active Exports</h3>
+      <export-progress
+        v-for="exportItem in exportStore.activeExports"
+        :key="exportItem._id"
+        :export-id="exportItem._id"
+        :export-data="exportItem"
+        @download="handleExportDownload"
+        @cancel="handleExportCancel"
+        data-test="export-progress-item"
+      />
+    </div>
+
+    <!-- Recent Export Notifications -->
+    <div v-if="recentExports.length > 0 && !exportStore.activeExports.length" class="mb-4" data-test="recent-exports">
+      <div class="d-flex align-center mb-2">
+        <h3 class="text-subtitle-1 mb-0">Recent Exports</h3>
+        <v-spacer></v-spacer>
+        <v-btn
+          variant="text"
+          size="small"
+          to="/exports"
+          color="primary"
+          data-test="view-all-exports"
+        >
+          View All
+        </v-btn>
+      </div>
+      <export-progress
+        v-for="exportItem in recentExports"
+        :key="exportItem._id"
+        :export-id="exportItem._id"
+        :export-data="exportItem"
+        @download="handleExportDownload"
+        @retry="handleExportRetry"
+        data-test="export-progress-item"
+      />
+    </div>
 
     <div v-if="taskStore.loading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
@@ -139,6 +220,14 @@
       </div>
     </div>
 
+    <!-- Export Dialog -->
+    <export-dialog
+      v-model="showExportDialog"
+      :filters="combinedFilters"
+      @export-created="handleExportCreated"
+      data-test="export-dialog"
+    />
+
     <task-form-dialog v-model="showCreateDialog" @save="handleSave" />
 
     <task-form-dialog
@@ -164,15 +253,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useTaskStore } from '../stores/taskStore.js'
+import { useExportStore } from '../stores/exportStore.js'
 import TaskFormDialog from './TaskFormDialog.vue'
+import AdvancedFilterPanel from './AdvancedFilterPanel.vue'
+import ExportDialog from './ExportDialog.vue'
+import ExportProgress from './ExportProgress.vue'
 
 const taskStore = useTaskStore()
+const exportStore = useExportStore()
 
 const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
+const showExportDialog = ref(false)
 const selectedTask = ref(null)
 
 const filters = reactive({
@@ -180,6 +275,58 @@ const filters = reactive({
   priority: '',
   sortBy: 'createdAt',
   sortOrder: 'desc'
+})
+
+const advancedFilters = reactive({
+  search: '',
+  status: [],
+  priority: [],
+  assignee: [],
+  dateFrom: '',
+  dateTo: '',
+  tags: []
+})
+
+// Combined filters for export
+const combinedFilters = computed(() => {
+  return {
+    ...filters,
+    // Convert single status to array if present
+    status: filters.status ? [filters.status] : advancedFilters.status,
+    // Convert single priority to array if present
+    priority: filters.priority ? [filters.priority] : advancedFilters.priority,
+    // Add advanced filters
+    search: advancedFilters.search,
+    assignee: advancedFilters.assignee,
+    dateFrom: advancedFilters.dateFrom,
+    dateTo: advancedFilters.dateTo,
+    tags: advancedFilters.tags
+  }
+})
+
+// Count active advanced filters
+const advancedFilterCount = computed(() => {
+  let count = 0
+  if (advancedFilters.search) count++
+  if (advancedFilters.status?.length > 0) count++
+  if (advancedFilters.priority?.length > 0) count++
+  if (advancedFilters.assignee?.length > 0) count++
+  if (advancedFilters.dateFrom || advancedFilters.dateTo) count++
+  if (advancedFilters.tags?.length > 0) count++
+  return count
+})
+
+// Get recent exports (completed or failed in the last 24 hours)
+const recentExports = computed(() => {
+  const oneDayAgo = new Date()
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+  
+  return exportStore.exports
+    .filter(exp => 
+      (exp.status === 'completed' || exp.status === 'failed') && 
+      new Date(exp.updatedAt) > oneDayAgo
+    )
+    .slice(0, 3) // Show only last 3
 })
 
 const statusOptions = [
@@ -209,6 +356,52 @@ const orderOptions = [
 
 function updateFilters() {
   taskStore.updateFilters(filters)
+}
+
+function updateAdvancedFilters(newFilters) {
+  Object.assign(advancedFilters, newFilters)
+  
+  // Clear basic filters that overlap with advanced filters
+  if (advancedFilters.status?.length > 0) filters.status = ''
+  if (advancedFilters.priority?.length > 0) filters.priority = ''
+  
+  // Update task store with combined filters
+  const combinedFiltersForUpdate = {
+    ...filters,
+    // Add advanced filter properties
+    search: advancedFilters.search,
+    dateFrom: advancedFilters.dateFrom,
+    dateTo: advancedFilters.dateTo,
+    // Use arrays for multiple selections
+    statusArray: advancedFilters.status,
+    priorityArray: advancedFilters.priority,
+    assignee: advancedFilters.assignee,
+    tags: advancedFilters.tags
+  }
+  
+  taskStore.updateFilters(combinedFiltersForUpdate)
+}
+
+function onAdvancedExport() {
+  showExportDialog.value = true
+}
+
+function handleExportCreated(exportRecord) {
+  // Add notification or display progress
+  console.log('Export created:', exportRecord)
+  showExportDialog.value = false
+}
+
+function handleExportDownload(exportId) {
+  console.log('Export downloaded:', exportId)
+}
+
+function handleExportCancel(exportId) {
+  console.log('Export cancelled:', exportId)
+}
+
+function handleExportRetry(exportId) {
+  console.log('Export retry:', exportId)
 }
 
 function editTask(task) {
@@ -276,5 +469,15 @@ function formatDate(date) {
 
 onMounted(() => {
   taskStore.fetchTasks()
+  exportStore.fetchExports()
+  exportStore.initializeSocketListeners()
+})
+
+onUnmounted(() => {
+  exportStore.cleanup()
 })
 </script>
+
+<style scoped>
+/* Add any component-specific styles here */
+</style>

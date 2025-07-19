@@ -24,11 +24,20 @@ export const useTaskStore = defineStore('tasks', () => {
     pages: 0
   })
 
+  // Enhanced filters with advanced options
   const filters = ref({
     status: '',
     priority: '',
     sortBy: 'createdAt',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    // Advanced filter properties
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+    statusArray: [], // For multi-select status filter
+    priorityArray: [], // For multi-select priority filter
+    assignee: [],
+    tags: []
   })
 
   const pendingTasks = computed(() =>
@@ -60,6 +69,70 @@ export const useTaskStore = defineStore('tasks', () => {
   }))
 
   /**
+   * Gets tasks filtered by current client-side filters
+   * For export dialog and other uses
+   * @computed
+   * @returns {Array} Filtered tasks
+   */
+  const filteredTasks = computed(() => {
+    return tasks.value.filter(task => {
+      // Apply text search filter
+      if (filters.value.search) {
+        const search = filters.value.search.toLowerCase();
+        const matchTitle = task.title.toLowerCase().includes(search);
+        const matchDesc = task.description?.toLowerCase().includes(search) || false;
+        
+        if (!matchTitle && !matchDesc) {
+          return false;
+        }
+      }
+      
+      // Apply status filters (single or multiple)
+      if (filters.value.status && task.status !== filters.value.status) {
+        return false;
+      }
+      
+      if (filters.value.statusArray && 
+          filters.value.statusArray.length > 0 && 
+          !filters.value.statusArray.includes(task.status)) {
+        return false;
+      }
+      
+      // Apply priority filters (single or multiple)
+      if (filters.value.priority && task.priority !== filters.value.priority) {
+        return false;
+      }
+      
+      if (filters.value.priorityArray && 
+          filters.value.priorityArray.length > 0 && 
+          !filters.value.priorityArray.includes(task.priority)) {
+        return false;
+      }
+      
+      // Apply date range filters
+      if (filters.value.dateFrom) {
+        const fromDate = new Date(filters.value.dateFrom);
+        const taskDate = new Date(task.createdAt);
+        if (taskDate < fromDate) {
+          return false;
+        }
+      }
+      
+      if (filters.value.dateTo) {
+        const toDate = new Date(filters.value.dateTo);
+        toDate.setHours(23, 59, 59, 999); // End of day
+        const taskDate = new Date(task.createdAt);
+        if (taskDate > toDate) {
+          return false;
+        }
+      }
+      
+      // All filters passed
+      return true;
+    });
+  });
+
+  /**
    * Fetches tasks with pagination and filtering
    * @async
    * @function fetchTasks
@@ -71,16 +144,40 @@ export const useTaskStore = defineStore('tasks', () => {
     error.value = null
 
     try {
+      // Build query parameters with enhanced filter support
       const queryParams = {
         page: pagination.value.page,
         limit: pagination.value.limit,
-        ...filters.value,
         ...params
       }
 
-      Object.keys(queryParams).forEach((key) => {
-        if (!queryParams[key]) delete queryParams[key]
-      })
+      // Add basic filters
+      if (filters.value.status) queryParams.status = filters.value.status
+      if (filters.value.priority) queryParams.priority = filters.value.priority
+      if (filters.value.sortBy) queryParams.sortBy = filters.value.sortBy
+      if (filters.value.sortOrder) queryParams.sortOrder = filters.value.sortOrder
+      
+      // Add advanced filters
+      if (filters.value.search) queryParams.search = filters.value.search
+      if (filters.value.dateFrom) queryParams.dateFrom = filters.value.dateFrom
+      if (filters.value.dateTo) queryParams.dateTo = filters.value.dateTo
+      
+      // Handle array filters
+      if (filters.value.statusArray && filters.value.statusArray.length > 0) {
+        queryParams.status = filters.value.statusArray
+      }
+      
+      if (filters.value.priorityArray && filters.value.priorityArray.length > 0) {
+        queryParams.priority = filters.value.priorityArray
+      }
+      
+      if (filters.value.assignee && filters.value.assignee.length > 0) {
+        queryParams.assignee = filters.value.assignee
+      }
+      
+      if (filters.value.tags && filters.value.tags.length > 0) {
+        queryParams.tags = filters.value.tags
+      }
 
       const response = await apiClient.getTasks(queryParams)
 
@@ -272,6 +369,27 @@ export const useTaskStore = defineStore('tasks', () => {
     socket.off('task-update', handleTaskUpdate)
   }
 
+  /**
+   * Clears all filters
+   * @function clearFilters
+   */
+  function clearFilters() {
+    filters.value = {
+      status: '',
+      priority: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      search: '',
+      dateFrom: '',
+      dateTo: '',
+      statusArray: [],
+      priorityArray: [],
+      assignee: [],
+      tags: []
+    }
+    fetchTasks()
+  }
+
   return {
     tasks,
     loading,
@@ -284,6 +402,7 @@ export const useTaskStore = defineStore('tasks', () => {
     highPriorityTasks,
     tasksByStatus,
     tasksByPriority,
+    filteredTasks,
     fetchTasks,
     getTask,
     createTask,
@@ -291,6 +410,7 @@ export const useTaskStore = defineStore('tasks', () => {
     deleteTask,
     updateFilters,
     setPage,
+    clearFilters,
     handleTaskUpdate,
     initializeSocketListeners,
     cleanup
