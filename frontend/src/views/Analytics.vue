@@ -180,6 +180,7 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analyticsStore.js'
 import MetricCard from '../components/MetricCard.vue'
 import TaskStatusChart from '../components/TaskStatusChart.vue'
@@ -187,6 +188,10 @@ import TaskPriorityChart from '../components/TaskPriorityChart.vue'
 import RecentActivity from '../components/RecentActivity.vue'
 
 const analyticsStore = useAnalyticsStore()
+
+onMounted(() => {
+  analyticsStore.fetchAnalytics()
+})
 
 function formatLastUpdated(timestamp) {
   const now = new Date()

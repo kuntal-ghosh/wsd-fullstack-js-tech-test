@@ -105,51 +105,64 @@ export const validateExportRequest = (req, res, next) => {
   };
 
   // Define validation schema for export request
-  const schema = Joi.object({
+const schema = Joi.object({
     format: Joi.string().valid('csv', 'json').required()
-      .messages({
-        'any.required': 'format is required',
-        'any.only': 'format must be a valid format (csv or json)'
-      }),
+        .messages({
+            'any.required': 'format is required',
+            'any.only': 'format must be a valid format (csv or json)'
+        }),
     filters: Joi.object({
-      status: Joi.alternatives().try(
-        Joi.string().custom(validateStatus),
-        Joi.array().items(Joi.string()).custom(validateStatus)
-      ).messages({
-        'any.invalid': 'status must be a valid status value'
-      }),
-      priority: Joi.alternatives().try(
-        Joi.string().custom(validatePriority),
-        Joi.array().items(Joi.string()).custom(validatePriority)
-      ).messages({
-        'any.invalid': 'priority must be a valid priority value'
-      }),
-      dateFrom: Joi.date().iso().messages({
-        'date.base': 'dateFrom must be a valid date',
-        'date.format': 'dateFrom must be a valid ISO date'
-      }),
-      dateTo: Joi.date().iso().min(Joi.ref('dateFrom')).messages({
-        'date.base': 'dateTo must be a valid date',
-        'date.format': 'dateTo must be a valid ISO date',
-        'date.min': 'dateTo must be greater than or equal to dateFrom'
-      }),
-      search: Joi.string().max(255).messages({
-        'string.max': 'search must be less than or equal to 255 characters in length'
-      }),
-      estimatedTimeMin: Joi.number().min(0).messages({
-        'number.base': 'estimatedTimeMin must be a number',
-        'number.min': 'estimatedTimeMin must be greater than or equal to 0'
-      }),
-      estimatedTimeMax: Joi.number().min(Joi.ref('estimatedTimeMin')).messages({
-        'number.base': 'estimatedTimeMax must be a number',
-        'number.min': 'estimatedTimeMax must be greater than or equal to ref:estimatedTimeMin'
-      })
+        status: Joi.alternatives().try(
+            Joi.string().custom(validateStatus),
+            Joi.array().items(Joi.string()).custom(validateStatus)
+        ).messages({
+            'any.invalid': 'status must be a valid status value'
+        }),
+        priority: Joi.alternatives().try(
+            Joi.string().custom(validatePriority),
+            Joi.array().items(Joi.string()).custom(validatePriority)
+        ).messages({
+            'any.invalid': 'priority must be a valid priority value'
+        }),
+        dateFrom: Joi.alternatives()
+            .try(
+                Joi.string().allow(''),
+                Joi.date().iso()
+            )
+            .messages({
+                'date.base': 'dateFrom must be a valid date',
+                'date.format': 'dateFrom must be a valid ISO date'
+            }),
+        dateTo: Joi.alternatives()
+            .try(
+                Joi.string().allow(''),
+                Joi.date().iso().min(Joi.ref('dateFrom'))
+            )
+            .messages({
+                'date.base': 'dateTo must be a valid date',
+                'date.format': 'dateTo must be a valid ISO date',
+                'date.min': 'dateTo must be greater than or equal to dateFrom'
+            }),
+        search: Joi.string().max(255).messages({
+            'string.max': 'search must be less than or equal to 255 characters in length'
+        }),
+        estimatedTimeMin: Joi.number().min(0).messages({
+            'number.base': 'estimatedTimeMin must be a number',
+            'number.min': 'estimatedTimeMin must be greater than or equal to 0'
+        }),
+        estimatedTimeMax: Joi.number().min(Joi.ref('estimatedTimeMin')).messages({
+            'number.base': 'estimatedTimeMax must be a number',
+            'number.min': 'estimatedTimeMax must be greater than or equal to ref:estimatedTimeMin'
+        })
     }).default({}),
     filename: Joi.string().max(255).pattern(/^[a-zA-Z0-9_\-. ]+$/).allow(null, '').messages({
-      'string.max': 'filename must be less than or equal to 255 characters in length',
-      'string.pattern.base': 'filename contains invalid characters'
+        'string.max': 'filename must be less than or equal to 255 characters in length',
+        'string.pattern.base': 'filename contains invalid characters'
+    }),
+    userId: Joi.string().max(100).allow(null, '').messages({
+        'string.max': 'userId must be less than or equal to 100 characters in length'
     })
-  });
+});
 
   // Apply sanitization to the filters
   if (req.body && req.body.filters) {

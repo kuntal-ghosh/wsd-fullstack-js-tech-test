@@ -101,47 +101,7 @@
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
-
-    <!-- Active Export Notifications -->
-    <div v-if="exportStore.activeExports.length > 0" class="mb-4" data-test="active-exports">
-      <h3 class="text-subtitle-1 mb-2">Active Exports</h3>
-      <export-progress
-        v-for="exportItem in exportStore.activeExports"
-        :key="exportItem._id"
-        :export-id="exportItem._id"
-        :export-data="exportItem"
-        @download="handleExportDownload"
-        @cancel="handleExportCancel"
-        data-test="export-progress-item"
-      />
-    </div>
-
-    <!-- Recent Export Notifications -->
-    <div v-if="recentExports.length > 0 && !exportStore.activeExports.length" class="mb-4" data-test="recent-exports">
-      <div class="d-flex align-center mb-2">
-        <h3 class="text-subtitle-1 mb-0">Recent Exports</h3>
-        <v-spacer></v-spacer>
-        <v-btn
-          variant="text"
-          size="small"
-          to="/exports"
-          color="primary"
-          data-test="view-all-exports"
-        >
-          View All
-        </v-btn>
-      </div>
-      <export-progress
-        v-for="exportItem in recentExports"
-        :key="exportItem._id"
-        :export-id="exportItem._id"
-        :export-data="exportItem"
-        @download="handleExportDownload"
-        @retry="handleExportRetry"
-        data-test="export-progress-item"
-      />
-    </div>
-
+    
     <div v-if="taskStore.loading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
     </div>
@@ -259,7 +219,6 @@ import { useExportStore } from '../stores/exportStore.js'
 import TaskFormDialog from './TaskFormDialog.vue'
 import AdvancedFilterPanel from './AdvancedFilterPanel.vue'
 import ExportDialog from './ExportDialog.vue'
-import ExportProgress from './ExportProgress.vue'
 
 const taskStore = useTaskStore()
 const exportStore = useExportStore()

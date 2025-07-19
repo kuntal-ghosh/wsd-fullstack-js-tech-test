@@ -14,6 +14,22 @@ import { AppError } from '../middleware/errorHandler.js';
 const router = express.Router();
 
 /**
+ * Socket handlers reference for real-time updates
+ * @type {Object|null}
+ */
+let socketHandlers = null;
+
+/**
+ * Sets socket handlers for broadcasting real-time updates
+ * @param {Object} handlers - Socket handler object with broadcast methods
+ */
+export const setSocketHandlers = (handlers) => {
+  socketHandlers = handlers;
+  ExportService.setSocketHandlers(handlers);
+  console.log('🔧 Export routes: Socket handlers set', !!handlers);
+};
+
+/**
  * POST /api/exports - Create new export request
  * @name CreateExport
  * @function
@@ -28,6 +44,16 @@ router.post('/exports', validateExportRequest, async (req, res, next) => {
     
     // Create export
     const exportDoc = await ExportService.createExport(filters, format, filename);
+
+    // Broadcast export list update
+    console.log('🔧 Export created, socketHandlers available:', !!socketHandlers);
+    if (socketHandlers) {
+      console.log('🔧 Broadcasting export list update for:', exportDoc._id);
+      await socketHandlers.broadcastExportListUpdate('created', exportDoc);
+      console.log('🔧 Export list update broadcast completed');
+    } else {
+      console.log('❌ No socket handlers available for export broadcast');
+    }
 
     // Start processing in background (don't await)
     ExportService.processExport(exportDoc._id.toString())

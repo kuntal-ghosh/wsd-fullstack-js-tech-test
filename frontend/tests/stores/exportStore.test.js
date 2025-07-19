@@ -133,6 +133,31 @@ describe('Export Store', () => {
       expect(exportStore.activeExports[1]._id).toBe('2')
     })
 
+    it('should hide completed exports with expired auto-hide timer', () => {
+      // Add a completed export with auto-hide timer in the past
+      exportStore.exports.push({
+        _id: '5',
+        status: 'completed',
+        progress: 100,
+        format: 'csv',
+        _autoHideAfter: Date.now() - 1000 // 1 second ago
+      })
+
+      // Add a completed export with auto-hide timer in the future
+      exportStore.exports.push({
+        _id: '6',
+        status: 'completed',
+        progress: 100,
+        format: 'csv',
+        _autoHideAfter: Date.now() + 10000 // 10 seconds from now
+      })
+
+      // Should still show only the pending and processing exports
+      // The completed export with expired timer should be hidden
+      expect(exportStore.activeExports).toHaveLength(2)
+      expect(exportStore.activeExports.map(e => e._id)).toEqual(['1', '2'])
+    })
+
     it('should filter completed exports correctly', () => {
       expect(exportStore.completedExports).toHaveLength(1)
       expect(exportStore.completedExports[0]._id).toBe('3')
@@ -511,6 +536,112 @@ describe('Export Store', () => {
         )
         expect(completedExport.completedAt).toBe('2024-01-01T13:00:00Z')
         expect(completedExport.updatedAt).toBe('2024-01-01T13:00:00Z')
+      })
+
+      it('should auto-download completed export and set auto-hide timer', async () => {
+        // Setup export with filename and downloadUrl
+        exportStore.exports = [{
+          _id: 'auto-download-test',
+          status: 'processing',
+          progress: 75,
+          filename: 'test-export.csv',
+          format: 'csv'
+        }]
+
+        // Mock successful download
+        vi.spyOn(exportStore, 'downloadExport').mockResolvedValue()
+
+        const completionData = {
+          exportId: 'auto-download-test',
+          exportData: {
+            totalRecords: 100,
+            fileSize: 2048,
+            downloadUrl: '/api/exports/auto-download-test/download',
+            filename: 'test-export.csv'
+          },
+          timestamp: '2024-01-01T13:00:00Z'
+        }
+
+        exportStore.handleExportCompleted(completionData)
+
+        const completedExport = exportStore.exports[0]
+        
+        // Verify export is marked completed
+        expect(completedExport.status).toBe('completed')
+        expect(completedExport.progress).toBe(100)
+        expect(completedExport._autoHideAfter).toBeDefined()
+        expect(completedExport._autoHideAfter).toBeGreaterThan(Date.now())
+
+        // Wait for async auto-download to be called
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        // Verify auto-download was triggered
+        expect(exportStore.downloadExport).toHaveBeenCalledWith(
+          'auto-download-test',
+          'test-export.csv'
+        )
+      })
+
+      it('should not auto-download if export has no filename', () => {
+        // Setup export without filename
+        exportStore.exports = [{
+          _id: 'no-filename-test',
+          status: 'processing',
+          progress: 75,
+          format: 'csv'
+        }]
+
+        vi.spyOn(exportStore, 'downloadExport').mockResolvedValue()
+
+        const completionData = {
+          exportId: 'no-filename-test',
+          exportData: {
+            totalRecords: 100,
+            fileSize: 2048,
+            downloadUrl: '/api/exports/no-filename-test/download'
+          },
+          timestamp: '2024-01-01T13:00:00Z'
+        }
+
+        exportStore.handleExportCompleted(completionData)
+
+        // Verify auto-download was NOT triggered
+        expect(exportStore.downloadExport).not.toHaveBeenCalled()
+      })
+
+      it('should remove auto-hide timer on download error', async () => {
+        // Setup export
+        exportStore.exports = [{
+          _id: 'download-error-test',
+          status: 'processing',
+          progress: 75,
+          filename: 'test-export.csv',
+          format: 'csv'
+        }]
+
+        // Mock download error
+        vi.spyOn(exportStore, 'downloadExport').mockRejectedValue(new Error('Download failed'))
+
+        const completionData = {
+          exportId: 'download-error-test',
+          exportData: {
+            totalRecords: 100,
+            fileSize: 2048,
+            downloadUrl: '/api/exports/download-error-test/download',
+            filename: 'test-export.csv'
+          },
+          timestamp: '2024-01-01T13:00:00Z'
+        }
+
+        exportStore.handleExportCompleted(completionData)
+
+        // Wait for async auto-download error handling
+        await new Promise(resolve => setTimeout(resolve, 10))
+
+        const completedExport = exportStore.exports[0]
+        
+        // Verify auto-hide timer was removed on error
+        expect(completedExport._autoHideAfter).toBeUndefined()
       })
     })
 

@@ -16,6 +16,22 @@ import ExportCacheService from './exportCacheService.js';
  */
 class ExportService {
   /**
+   * Socket handlers reference for real-time updates
+   * @static
+   * @type {Object|null}
+   */
+  static socketHandlers = null;
+
+  /**
+   * Sets socket handlers for broadcasting real-time updates
+   * @static
+   * @param {Object} handlers - Socket handler object with broadcast methods
+   */
+  static setSocketHandlers(handlers) {
+    this.socketHandlers = handlers;
+    console.log('🔧 ExportService: Socket handlers set', !!handlers);
+  }
+  /**
    * Creates a new export request
    * @static
    * @param {Object} filters - Filter parameters for the export
@@ -318,7 +334,14 @@ class ExportService {
         throw new Error('Export not found');
       }
 
-      return await exportDoc.updateProgress(progress);
+      const updatedExport = await exportDoc.updateProgress(progress);
+
+      // Broadcast progress update
+      if (this.socketHandlers) {
+        this.socketHandlers.broadcastExportProgress(exportId, progress, 'processing');
+      }
+
+      return updatedExport;
     } catch (error) {
       throw new Error(`Progress update failed: ${error.message}`);
     }
@@ -338,7 +361,19 @@ class ExportService {
         throw new Error('Export not found');
       }
 
-      return await exportDoc.markCompleted(fileInfo);
+      const completedExport = await exportDoc.markCompleted(fileInfo);
+
+      // Broadcast completion
+      if (this.socketHandlers) {
+        await this.socketHandlers.broadcastExportCompleted(exportId, {
+          format: completedExport.format,
+          totalRecords: fileInfo.totalRecords,
+          fileSize: fileInfo.fileSize,
+          downloadUrl: fileInfo.downloadUrl
+        });
+      }
+
+      return completedExport;
     } catch (error) {
       throw new Error(`Mark completed failed: ${error.message}`);
     }
@@ -358,7 +393,14 @@ class ExportService {
         throw new Error('Export not found');
       }
 
-      return await exportDoc.markFailed(errorMessage);
+      const failedExport = await exportDoc.markFailed(errorMessage);
+
+      // Broadcast failure
+      if (this.socketHandlers) {
+        await this.socketHandlers.broadcastExportFailed(exportId, errorMessage);
+      }
+
+      return failedExport;
     } catch (error) {
       console.error(`Failed to mark export as failed: ${error.message}`);
       throw error;

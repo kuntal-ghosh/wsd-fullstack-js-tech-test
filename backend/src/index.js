@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 import { connectMongoDB } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import apiRoutes, { setSocketHandlers } from './routes/api.js';
-import exportRoutes from './routes/exportRoutes.js';
+import exportRoutes, { setSocketHandlers as setExportSocketHandlers } from './routes/exportRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import SocketHandlers from './sockets/socketHandlers.js';
 import AnalyticsService from './services/analyticsService.js';
@@ -63,6 +63,7 @@ const socketHandlers = new SocketHandlers(io);
 
 // Connect socket handlers to API routes for real-time updates
 setSocketHandlers(socketHandlers);
+setExportSocketHandlers(socketHandlers);
 
 /**
  * Handles graceful server shutdown on SIGTERM/SIGINT signals

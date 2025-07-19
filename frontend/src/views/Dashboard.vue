@@ -100,6 +100,7 @@ const analyticsStore = useAnalyticsStore()
 const taskStore = useTaskStore()
 
 onMounted(() => {
+  analyticsStore.fetchAnalytics()
   taskStore.fetchTasks({ limit: 5 })
 })
 </script>
