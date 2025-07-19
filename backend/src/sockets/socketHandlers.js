@@ -32,6 +32,11 @@ class SocketHandlers {
         console.log(`📊 Client ${socket.id} joined analytics room`);
       });
 
+      socket.on('join-exports', () => {
+        socket.join('exports');
+        console.log(`📤 Client ${socket.id} joined exports room`);
+      });
+
       socket.on('request-analytics', async () => {
         try {
           const metrics = await AnalyticsService.getTaskMetrics();
@@ -117,6 +122,102 @@ class SocketHandlers {
         'warning'
       );
     }
+  }
+
+  /**
+   * Broadcasts export progress updates to all connected clients in exports room
+   * @param {string} exportId - Export document ID
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {string} [status='processing'] - Export status
+   */
+  broadcastExportProgress(exportId, progress, status = 'processing') {
+    const progressData = {
+      exportId,
+      progress,
+      status,
+      timestamp: new Date().toISOString()
+    };
+
+    this.io.to('exports').emit('export-progress', progressData);
+    console.log(`📤 Broadcasting export progress: ${exportId} - ${progress}%`);
+  }
+
+  /**
+   * Broadcasts export status changes to all connected clients in exports room
+   * @param {string} exportId - Export document ID
+   * @param {string} status - New export status
+   * @param {Object} [metadata] - Additional status metadata
+   */
+  broadcastExportStatusChange(exportId, status, metadata = {}) {
+    const statusData = {
+      exportId,
+      status,
+      metadata,
+      timestamp: new Date().toISOString()
+    };
+
+    this.io.to('exports').emit('export-status-change', statusData);
+    console.log(`📤 Broadcasting export status change: ${exportId} - ${status}`);
+  }
+
+  /**
+   * Broadcasts export completion to all connected clients in exports room
+   * @param {string} exportId - Export document ID
+   * @param {Object} exportData - Completed export data
+   */
+  broadcastExportCompleted(exportId, exportData) {
+    const completionData = {
+      exportId,
+      status: 'completed',
+      exportData,
+      timestamp: new Date().toISOString()
+    };
+
+    this.io.to('exports').emit('export-completed', completionData);
+    this.broadcastNotification(
+      `✅ Export completed successfully: ${exportData.format} format with ${exportData.totalRecords || 0} records`,
+      'success'
+    );
+    console.log(`📤 Broadcasting export completion: ${exportId}`);
+  }
+
+  /**
+   * Broadcasts export failure to all connected clients in exports room
+   * @param {string} exportId - Export document ID
+   * @param {string} error - Error message
+   * @param {Object} [metadata] - Additional failure metadata
+   */
+  broadcastExportFailed(exportId, error, metadata = {}) {
+    const failureData = {
+      exportId,
+      status: 'failed',
+      error,
+      metadata,
+      timestamp: new Date().toISOString()
+    };
+
+    this.io.to('exports').emit('export-failed', failureData);
+    this.broadcastNotification(
+      `❌ Export failed: ${error}`,
+      'error'
+    );
+    console.log(`📤 Broadcasting export failure: ${exportId} - ${error}`);
+  }
+
+  /**
+   * Broadcasts export list updates to all connected clients in exports room
+   * @param {string} action - Action performed (created, updated, deleted)
+   * @param {Object} exportData - Export data
+   */
+  broadcastExportListUpdate(action, exportData) {
+    const updateData = {
+      action,
+      export: exportData,
+      timestamp: new Date().toISOString()
+    };
+
+    this.io.to('exports').emit('export-list-update', updateData);
+    console.log(`📤 Broadcasting export list update: ${action} - ${exportData._id}`);
   }
 }
 

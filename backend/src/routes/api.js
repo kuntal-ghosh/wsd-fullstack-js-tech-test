@@ -45,9 +45,16 @@ export const setSocketHandlers = (handlers) => {
  */
 router.get('/tasks', async (req, res, next) => {
   try {
+    // Parse pagination parameters with defaults
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 10;
+
+    // Ensure positive values for pagination
+    page = Math.max(1, page);
+    limit = Math.max(1, Math.min(limit, 1000)); // Add upper limit for safety
+
+    // Extract all possible filter parameters from query
     const {
-      page = 1,
-      limit = 10,
       status,
       priority,
       search,
@@ -58,6 +65,7 @@ router.get('/tasks', async (req, res, next) => {
     } = req.query;
 
     // Sanitize and build filter query using TaskFilterService
+    // This handles validation and sanitization of all filter parameters
     const filters = TaskFilterService.sanitizeFilters({
       status,
       priority,
@@ -66,27 +74,33 @@ router.get('/tasks', async (req, res, next) => {
       dateTo
     });
 
+    // Build MongoDB query and sort options using TaskFilterService
     const query = TaskFilterService.buildFilterQuery(filters);
     const sort = TaskFilterService.buildSortOptions(sortBy, sortOrder);
 
+    // Execute query with pagination
     const tasks = await Task.find(query)
       .sort(sort)
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit)
       .exec();
 
+    // Get total count for pagination
     const total = await Task.countDocuments(query);
 
+    // Return formatted response
     res.json({
       success: true,
       data: {
         tasks,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page,
+          limit,
           total,
           pages: Math.ceil(total / limit)
-        }
+        },
+        // Include applied filters in response for transparency
+        appliedFilters: filters
       }
     });
   } catch (error) {
