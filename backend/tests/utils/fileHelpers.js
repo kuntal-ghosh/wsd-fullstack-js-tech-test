@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Test export directory
-const TEST_EXPORT_DIR = path.join(__dirname, '..', '..', 'data');
+const TEST_EXPORT_DIR = path.join(__dirname, '..', '..', 'test-exports');
 
 /**
  * Ensure test export directory exists

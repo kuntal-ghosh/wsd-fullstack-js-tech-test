@@ -75,7 +75,7 @@
           offset-y
           min-width="auto"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props: activatorProps }">
             <v-text-field
               v-model="formattedDateFrom"
               label="From Date"
@@ -86,10 +86,10 @@
               readonly
               clearable
               class="date-input"
-              v-bind="props"
-              @click:clear="clearFromDate"
+              v-bind="activatorProps"
               placeholder="Select date..."
               :error-messages="validationErrors.dateFrom"
+              @click:clear="clearFromDate"
             />
           </template>
           <v-card class="date-picker-card">
@@ -129,7 +129,7 @@
           offset-y
           min-width="auto"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props: activatorProps }">
             <v-text-field
               v-model="formattedDateTo"
               label="To Date"
@@ -140,10 +140,10 @@
               readonly
               clearable
               class="date-input"
-              v-bind="props"
-              @click:clear="clearToDate"
+              v-bind="activatorProps"
               placeholder="Select date..."
               :error-messages="validationErrors.dateTo"
+              @click:clear="clearToDate"
             />
           </template>
           <v-card class="date-picker-card">
@@ -277,7 +277,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { debounce } from 'lodash-es'
 
 // Props
@@ -322,14 +322,13 @@ const sortOrderOptions = [
 const emit = defineEmits(['update:modelValue', 'export', 'clear'])
 
 // Reactive state
-const panelOpen = ref([0])
 const localFilters = ref({
   search: '',
   status: [],
   priority: [],
   dateFrom: '',
   dateTo: '',
-  sortBy: '',  // Changed from 'createdAt' to empty string
+  sortBy: '', // Changed from 'createdAt' to empty string
   sortOrder: '', // Changed from 'desc' to empty string
   ...props.modelValue
 })
@@ -361,8 +360,8 @@ const hasActiveFilters = computed(() => {
     localFilters.value.priority?.length > 0 ||
     localFilters.value.dateFrom ||
     localFilters.value.dateTo ||
-    localFilters.value.sortBy ||  // Changed condition to check for any value
-    localFilters.value.sortOrder  // Changed condition to check for any value
+    localFilters.value.sortBy || // Changed condition to check for any value
+    localFilters.value.sortOrder // Changed condition to check for any value
   )
 })
 
@@ -372,8 +371,8 @@ const activeFilterCount = computed(() => {
   if (localFilters.value.status?.length > 0) count++
   if (localFilters.value.priority?.length > 0) count++
   if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
-  if (localFilters.value.sortBy) count++  // Changed condition to check for any value
-  if (localFilters.value.sortOrder) count++  // Changed condition to check for any value
+  if (localFilters.value.sortBy) count++ // Changed condition to check for any value
+  if (localFilters.value.sortOrder) count++ // Changed condition to check for any value
   return count
 })
 
@@ -386,13 +385,13 @@ const formattedDateFrom = computed({
   get() {
     if (!localFilters.value.dateFrom) return ''
     const date = new Date(localFilters.value.dateFrom)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     })
   },
-  set(value) {
+  set(_value) {
     // This setter won't be used directly as we handle updates through date picker
   }
 })
@@ -401,13 +400,13 @@ const formattedDateTo = computed({
   get() {
     if (!localFilters.value.dateTo) return ''
     const date = new Date(localFilters.value.dateTo)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     })
   },
-  set(value) {
+  set(_value) {
     // This setter won't be used directly as we handle updates through date picker
   }
 })
@@ -444,7 +443,9 @@ function validateFilters() {
 
   // Search validation
   if (localFilters.value.search && localFilters.value.search.length > 255) {
-    validationErrors.value.search = ['Search query is too long (max 255 characters)']
+    validationErrors.value.search = [
+      'Search query is too long (max 255 characters)'
+    ]
     isValid = false
   }
 
@@ -452,7 +453,7 @@ function validateFilters() {
   if (localFilters.value.dateFrom && localFilters.value.dateTo) {
     const fromDate = new Date(localFilters.value.dateFrom)
     const toDate = new Date(localFilters.value.dateTo)
-    
+
     if (fromDate > toDate) {
       validationErrors.value.dateFrom = ['From date cannot be after To date']
       validationErrors.value.dateTo = ['To date cannot be before From date']
@@ -461,7 +462,10 @@ function validateFilters() {
   }
 
   // Date format validation
-  if (localFilters.value.dateFrom && !isValidDate(localFilters.value.dateFrom)) {
+  if (
+    localFilters.value.dateFrom &&
+    !isValidDate(localFilters.value.dateFrom)
+  ) {
     validationErrors.value.dateFrom = ['Invalid date format']
     isValid = false
   }
@@ -474,12 +478,16 @@ function validateFilters() {
   // Array length validation
   const maxArrayLength = 10
   if (localFilters.value.status?.length > maxArrayLength) {
-    validationErrors.value.status = [`Maximum ${maxArrayLength} status filters allowed`]
+    validationErrors.value.status = [
+      `Maximum ${maxArrayLength} status filters allowed`
+    ]
     isValid = false
   }
 
   if (localFilters.value.priority?.length > maxArrayLength) {
-    validationErrors.value.priority = [`Maximum ${maxArrayLength} priority filters allowed`]
+    validationErrors.value.priority = [
+      `Maximum ${maxArrayLength} priority filters allowed`
+    ]
     isValid = false
   }
 
@@ -504,7 +512,7 @@ function clearValidationErrors() {
 }
 
 // Event handlers
-function onSearchInput() {
+const _onSearchInput = () => {
   debouncedEmitFilters()
 }
 
@@ -515,44 +523,44 @@ function onFiltersChange() {
   }
 }
 
-function onDateFromChange() {
+const _onDateFromChange = () => {
   onFiltersChange()
 }
 
-function onDateToChange() {
+const _onDateToChange = () => {
   onFiltersChange()
 }
 
-function clearSearch() {
+const _clearSearch = () => {
   localFilters.value.search = ''
   onFiltersChange()
 }
 
 // Handle clearing select components
-function onSelectClear(fieldName) {
+const _onSelectClear = (fieldName) => {
   if (fieldName === 'sortBy') {
-    localFilters.value.sortBy = 'createdAt';
+    localFilters.value.sortBy = 'createdAt'
   } else if (fieldName === 'sortOrder') {
-    localFilters.value.sortOrder = 'desc';
+    localFilters.value.sortOrder = 'desc'
   } else if (localFilters.value[fieldName]) {
-    localFilters.value[fieldName] = fieldName.endsWith('s') ? [] : '';
+    localFilters.value[fieldName] = fieldName.endsWith('s') ? [] : ''
   }
-  onFiltersChange();
+  onFiltersChange()
 }
 
 // Format functions for display
 function formatSortBy(sortBy) {
-  const option = sortByOptions.find(opt => opt.value === sortBy)
+  const option = sortByOptions.find((opt) => opt.value === sortBy)
   return option ? option.title : sortBy
 }
 
 function formatSortOrder(sortOrder) {
-  const option = sortOrderOptions.find(opt => opt.value === sortOrder)
+  const option = sortOrderOptions.find((opt) => opt.value === sortOrder)
   return option ? option.title : sortOrder
 }
 
 // Filter chip removal functions
-function clearSearchChip() {
+const _clearSearchChip = () => {
   localFilters.value.search = ''
   onFiltersChange()
 }
@@ -575,13 +583,13 @@ function removePriorityFilter(priority) {
 
 // Enhanced resetSortBy and resetSortOrder to work with clearable selects
 function resetSortBy() {
-  localFilters.value.sortBy = '';
-  onFiltersChange();
+  localFilters.value.sortBy = ''
+  onFiltersChange()
 }
 
 function resetSortOrder() {
-  localFilters.value.sortOrder = '';
-  onFiltersChange();
+  localFilters.value.sortOrder = ''
+  onFiltersChange()
 }
 
 function clearDateRange() {
@@ -614,7 +622,7 @@ function onExportClick() {
 function formatDateRange() {
   const from = localFilters.value.dateFrom
   const to = localFilters.value.dateTo
-  
+
   if (from && to) {
     return `${from} to ${to}`
   } else if (from) {
@@ -690,7 +698,11 @@ defineExpose({
 }
 
 .date-picker-card .v-card-title {
-  background: linear-gradient(135deg, var(--v-theme-primary), var(--v-theme-primary-darken-1));
+  background: linear-gradient(
+    135deg,
+    var(--v-theme-primary),
+    var(--v-theme-primary-darken-1)
+  );
   color: white;
   font-weight: 600;
   letter-spacing: 0.025em;

@@ -22,12 +22,18 @@
         <v-icon start>mdi-wifi</v-icon>
         Live
       </v-chip>
-      <v-chip v-else color="error" variant="flat" size="small" data-test="connection-status">
+      <v-chip
+        v-else
+        color="error"
+        variant="flat"
+        size="small"
+        data-test="connection-status"
+      >
         <v-icon start>mdi-wifi-off</v-icon>
         Offline
       </v-chip>
       <v-spacer></v-spacer>
-      
+
       <!-- Quick Actions -->
       <div class="d-flex gap-2">
         <v-btn
@@ -35,8 +41,8 @@
           prepend-icon="mdi-refresh"
           variant="outlined"
           :loading="analyticsStore.loading || exportStore.loading"
-          @click="refreshAllData"
           data-test="refresh-all-button"
+          @click="refreshAllData"
         >
           Refresh
         </v-btn>
@@ -62,7 +68,9 @@
       <v-col cols="12" md="4">
         <metric-card
           title="Average Completion Time"
-          :value="formatCompletionTime(analyticsStore.analytics.averageCompletionTime)"
+          :value="
+            formatCompletionTime(analyticsStore.analytics.averageCompletionTime)
+          "
           icon="mdi-clock"
           color="info"
           data-test="avg-completion-metric"
@@ -153,7 +161,10 @@
         </h2>
       </v-col>
       <v-col cols="12" md="6">
-        <v-card class="chart-container equal-height-chart" data-test="status-chart">
+        <v-card
+          class="chart-container equal-height-chart"
+          data-test="status-chart"
+        >
           <v-card-title class="d-flex align-center">
             <v-icon class="mr-2">mdi-format-list-checks</v-icon>
             Status Distribution
@@ -168,7 +179,10 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="6">
-        <v-card class="chart-container equal-height-chart" data-test="priority-chart">
+        <v-card
+          class="chart-container equal-height-chart"
+          data-test="priority-chart"
+        >
           <v-card-title class="d-flex align-center">
             <v-icon class="mr-2">mdi-priority-high</v-icon>
             Priority Distribution
@@ -197,7 +211,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <!-- Quick Stats Sidebar -->
       <v-col cols="12" lg="4">
         <div class="d-flex flex-column gap-4">
@@ -296,8 +310,8 @@
                   prepend-icon="mdi-file-delimited"
                   variant="outlined"
                   block
-                  @click="quickExportCSV"
                   data-test="quick-export-csv-button"
+                  @click="quickExportCSV"
                 >
                   Export All as CSV
                 </v-btn>
@@ -306,8 +320,8 @@
                   prepend-icon="mdi-code-json"
                   variant="outlined"
                   block
-                  @click="quickExportJSON"
                   data-test="quick-export-json-button"
+                  @click="quickExportJSON"
                 >
                   Export All as JSON
                 </v-btn>
@@ -316,8 +330,8 @@
                   prepend-icon="mdi-check-circle"
                   variant="outlined"
                   block
-                  @click="exportCompletedTasks"
                   data-test="export-completed-button"
+                  @click="exportCompletedTasks"
                 >
                   Export Completed Only
                 </v-btn>
@@ -343,27 +357,27 @@
               variant="outlined"
               size="small"
               :loading="exportStore.loading"
-              @click="refreshExportHistory"
               data-test="refresh-export-history-button"
+              @click="refreshExportHistory"
             >
               Refresh
             </v-btn>
           </div>
         </div>
-        
+
         <!-- Export History Component -->
-        <export-history-component 
-          @show-export-dialog="showExportDialog = true" 
+        <export-history-component
+          @show-export-dialog="showExportDialog = true"
         />
       </v-col>
     </v-row>
 
     <!-- Export Dialog -->
-    <export-dialog 
-      v-model="showExportDialog" 
+    <export-dialog
+      v-model="showExportDialog"
       :filters="{}"
-      @export-created="handleExportCreated"
       data-test="export-dialog"
+      @export-created="handleExportCreated"
     />
 
     <!-- Success Snackbar -->
@@ -379,10 +393,7 @@
         {{ successMessage }}
       </div>
       <template #actions>
-        <v-btn
-          variant="text"
-          @click="showSuccessMessage = false"
-        >
+        <v-btn variant="text" @click="showSuccessMessage = false">
           Close
         </v-btn>
       </template>
@@ -401,12 +412,7 @@
         {{ errorMessage }}
       </div>
       <template #actions>
-        <v-btn
-          variant="text"
-          @click="showErrorMessage = false"
-        >
-          Close
-        </v-btn>
+        <v-btn variant="text" @click="showErrorMessage = false"> Close </v-btn>
       </template>
     </v-snackbar>
   </div>
@@ -440,7 +446,8 @@ const exportMetrics = computed(() => {
 
   return {
     totalExports: history.length,
-    successfulExports: history.filter((exp) => exp.status === 'completed').length,
+    successfulExports: history.filter((exp) => exp.status === 'completed')
+      .length,
     failedExports: history.filter((exp) => exp.status === 'failed').length,
     totalFileSize: history
       .filter((exp) => exp.fileSize)
@@ -534,12 +541,14 @@ async function exportCompletedTasks() {
 function handleExportCreated(exportRecord) {
   // Close dialog if open
   showExportDialog.value = false
-  
+
   // Refresh export history to show the new export
   refreshExportHistory()
-  
+
   // Show success message with export ID
-  showSuccess(`Export ${exportRecord.id} created successfully and is being processed`)
+  showSuccess(
+    `Export ${exportRecord.id} created successfully and is being processed`
+  )
 }
 
 function showSuccess(message) {
@@ -670,7 +679,11 @@ function formatTotalSize(bytes) {
 
 /* Chart Container Styling */
 .chart-container {
-  background: linear-gradient(135deg, rgba(var(--v-theme-surface), 0.8) 0%, rgba(var(--v-theme-surface-bright), 0.9) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-surface), 0.8) 0%,
+    rgba(var(--v-theme-surface-bright), 0.9) 100%
+  );
   backdrop-filter: blur(10px);
 }
 
@@ -708,12 +721,12 @@ function formatTotalSize(bytes) {
   .page-title {
     font-size: 2rem;
   }
-  
+
   .d-flex.gap-2 {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .equal-height-chart {
     height: auto;
   }
@@ -723,7 +736,7 @@ function formatTotalSize(bytes) {
   .page-title {
     font-size: 1.75rem;
   }
-  
+
   .v-row .v-col {
     padding: 8px;
   }
@@ -761,10 +774,18 @@ function formatTotalSize(bytes) {
 
 /* Enhanced Theme Support */
 .v-theme--dark .chart-container {
-  background: linear-gradient(135deg, rgba(var(--v-theme-surface), 0.9) 0%, rgba(var(--v-theme-surface-bright), 0.95) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-surface), 0.9) 0%,
+    rgba(var(--v-theme-surface-bright), 0.95) 100%
+  );
 }
 
 .v-theme--light .chart-container {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(var(--v-theme-surface-bright), 0.9) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(var(--v-theme-surface-bright), 0.9) 100%
+  );
 }
 </style>

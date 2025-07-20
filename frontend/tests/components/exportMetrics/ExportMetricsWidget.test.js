@@ -47,10 +47,10 @@ describe('ExportMetricsWidget', () => {
     })
 
     // Check for key metrics being displayed
-    expect(wrapper.text()).toContain('5')  // Active exports
-    expect(wrapper.text()).toContain('8')  // Exports created today
-    expect(wrapper.text()).toContain('80%')  // Export success rate
-    expect(wrapper.text()).toContain('CSV')  // Most popular format
+    expect(wrapper.text()).toContain('5') // Active exports
+    expect(wrapper.text()).toContain('8') // Exports created today
+    expect(wrapper.text()).toContain('80%') // Export success rate
+    expect(wrapper.text()).toContain('CSV') // Most popular format
   })
 
   it('shows correct formatting for average export size', () => {

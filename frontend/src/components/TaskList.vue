@@ -14,19 +14,19 @@
     <div class="d-flex align-center mb-4">
       <h2 class="page-title">Tasks</h2>
       <v-spacer></v-spacer>
-      
+
       <!-- Export Button -->
       <v-btn
         color="info"
         class="mr-2"
         prepend-icon="mdi-download"
-        @click="showExportDialog = true"
         data-test="export-button"
         :disabled="taskStore.tasks.length === 0"
+        @click="showExportDialog = true"
       >
         Export
       </v-btn>
-      
+
       <v-btn color="primary" @click="showCreateDialog = true">
         <v-icon left>mdi-plus</v-icon>
         New Task
@@ -43,8 +43,8 @@
             type="text"
             placeholder="Search tasks by title or description..."
             class="search-input"
-            @input="onSearchInput"
             data-test="global-search-input"
+            @input="onSearchInput"
           />
           <div class="search-actions">
             <v-btn
@@ -52,8 +52,8 @@
               icon
               size="small"
               variant="text"
-              @click="clearSearch"
               class="clear-btn"
+              @click="clearSearch"
             >
               <v-icon size="18">mdi-close</v-icon>
             </v-btn>
@@ -63,7 +63,11 @@
     </div>
 
     <!-- Filters Section -->
-    <v-expansion-panels v-model="filterExpanded" class="mb-4" data-test="filter-panel-container">
+    <v-expansion-panels
+      v-model="filterExpanded"
+      class="mb-4"
+      data-test="filter-panel-container"
+    >
       <v-expansion-panel>
         <v-expansion-panel-title>
           <v-icon class="mr-2">mdi-filter-variant</v-icon>
@@ -81,15 +85,15 @@
         <v-expansion-panel-text>
           <advanced-filter-panel
             v-model="filters"
-            @update:model-value="updateFilters"
-            @export="onAdvancedExport"
             :export-loading="exportStore.loading"
             data-test="filter-panel"
+            @update:model-value="updateFilters"
+            @export="onAdvancedExport"
           />
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
-    
+
     <div v-if="taskStore.loading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
     </div>
@@ -98,7 +102,11 @@
       <v-alert type="error">{{ taskStore.error }}</v-alert>
     </div>
 
-    <div v-else-if="taskStore.tasks.length === 0" class="empty-state-container d-flex flex-column align-center justify-center pa-8" data-test="empty-state">
+    <div
+      v-else-if="taskStore.tasks.length === 0"
+      class="empty-state-container d-flex flex-column align-center justify-center pa-8"
+      data-test="empty-state"
+    >
       <!-- Animated background illustration -->
       <div class="empty-state-illustration mb-6">
         <div class="floating-documents">
@@ -112,34 +120,39 @@
             <v-icon size="32" color="success">mdi-clipboard-check</v-icon>
           </div>
         </div>
-        
+
         <!-- Central empty folder icon -->
         <div class="empty-folder">
-          <v-icon size="80" color="grey-lighten-2">mdi-format-list-checks</v-icon>
+          <v-icon size="80" color="grey-lighten-2"
+            >mdi-format-list-checks</v-icon
+          >
           <div class="folder-shine"></div>
         </div>
       </div>
-      
+
       <!-- Text content -->
       <div class="text-center">
         <h3 class="text-h5 mb-3 text-grey-darken-2">
-          {{ hasActiveFilters ? 'No tasks match your filters' : 'No tasks yet' }}
+          {{
+            hasActiveFilters ? 'No tasks match your filters' : 'No tasks yet'
+          }}
         </h3>
-        <p class="text-body-1 text-grey mb-4" style="max-width: 400px;">
-          {{ hasActiveFilters 
-            ? 'Try adjusting your filters or create a new task to get started.' 
-            : 'Start by creating your first task to organize your work efficiently.' 
+        <p class="text-body-1 text-grey mb-4" style="max-width: 400px">
+          {{
+            hasActiveFilters
+              ? 'Try adjusting your filters or create a new task to get started.'
+              : 'Start by creating your first task to organize your work efficiently.'
           }}
         </p>
-        
+
         <!-- Action button -->
         <v-btn
           color="primary"
           size="large"
           prepend-icon="mdi-plus"
           variant="elevated"
-          @click="showCreateDialog = true"
           class="mt-2"
+          @click="showCreateDialog = true"
         >
           {{ hasActiveFilters ? 'Create New Task' : 'Create Your First Task' }}
         </v-btn>
@@ -215,8 +228,8 @@
     <export-dialog
       v-model="showExportDialog"
       :filters="combinedFilters"
-      @export-created="handleExportCreated"
       data-test="export-dialog"
+      @export-created="handleExportCreated"
     />
 
     <task-form-dialog v-model="showCreateDialog" @save="handleSave" />
@@ -277,7 +290,7 @@ function clearSearch() {
 }
 
 // Expand the filter accordion when clicking on the filter icon
-function expandFilters() {
+function _expandFilters() {
   filterExpanded.value = [0]
 }
 
@@ -304,7 +317,7 @@ const filterCount = computed(() => {
   if (filters.priority?.length > 0) count++
   if (filters.dateFrom || filters.dateTo) count++
   if (filters.sortBy) count++
-  if (filters.sortOrder) count++ 
+  if (filters.sortOrder) count++
   return count
 })
 
@@ -321,22 +334,20 @@ const hasActiveFilters = computed(() => {
   )
 })
 
-
 function updateFilters(newFilters) {
   if (newFilters) {
     Object.assign(filters, newFilters)
   }
-  
+
   const filtersForUpdate = {
     ...filters,
     // Use arrays for multiple selections
     statusArray: filters.status,
     priorityArray: filters.priority
   }
-  
+
   taskStore.updateFilters(filtersForUpdate)
 }
-
 
 function onAdvancedExport() {
   showExportDialog.value = true
@@ -345,23 +356,27 @@ function onAdvancedExport() {
 function handleExportCreated(exportRecord) {
   // Close export dialog
   showExportDialog.value = false
-  
+
   // Show notification if export was created successfully
   if (exportRecord && exportRecord._id) {
     // We don't need to add to the exports list because the socket will handle that
     // Display temporary success message or toast could be added here if needed
     console.log('Export created successfully:', exportRecord)
-    
+
     // Scroll to the active exports section if it exists
     nextTick(() => {
-      const activeExportsElement = document.querySelector('[data-test="active-exports"]')
+      const activeExportsElement = document.querySelector(
+        '[data-test="active-exports"]'
+      )
       if (activeExportsElement) {
-        activeExportsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        activeExportsElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        })
       }
     })
   }
 }
-
 
 function editTask(task) {
   selectedTask.value = task
@@ -441,7 +456,11 @@ onUnmounted(() => {
 /* Beautiful Empty State Styling */
 .empty-state-container {
   min-height: 400px;
-  background: linear-gradient(135deg, rgba(var(--v-theme-surface-variant), 0.3) 0%, rgba(var(--v-theme-primary), 0.05) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-surface-variant), 0.3) 0%,
+    rgba(var(--v-theme-primary), 0.05) 100%
+  );
   border-radius: 16px;
   position: relative;
   overflow: hidden;
@@ -454,12 +473,17 @@ onUnmounted(() => {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.1) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(var(--v-theme-primary), 0.1) 0%,
+    transparent 70%
+  );
   animation: shimmer 6s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(0deg);
   }
   50% {
@@ -479,7 +503,8 @@ onUnmounted(() => {
 }
 
 @keyframes gentle-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -525,7 +550,8 @@ onUnmounted(() => {
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) rotate(0deg);
   }
   33% {
@@ -597,12 +623,12 @@ onUnmounted(() => {
     min-height: 350px;
     padding: 32px 16px;
   }
-  
+
   .floating-documents {
     width: 150px;
     height: 150px;
   }
-  
+
   .empty-folder .v-icon {
     font-size: 60px !important;
   }

@@ -19,13 +19,27 @@ import { loadTestConfig, getTestExportConfig, isTestEnvironment } from './testCo
 import { generateMockTask, generateMockTasks, generateMockExport } from './mockData.js';
 import { setupTestEnvironment, teardownTestEnvironment, cleanTestEnvironment } from './testSetup.js';
 
-describe('Test Infrastructure', () => {
+describe('Test Infrastructure', { timeout: 10000 }, () => {
   before(async () => {
     await setupTestEnvironment();
   });
 
   after(async () => {
     await teardownTestEnvironment();
+    
+    // Force cleanup to prevent hanging
+    setTimeout(() => {
+      console.log('🧹 Force cleanup completed');
+      process.nextTick(() => {
+        if (process.env.NODE_ENV === 'test') {
+          // Clear any remaining handles
+          const activeHandles = process._getActiveHandles ? process._getActiveHandles().length : 0;
+          if (activeHandles > 0) {
+            console.log(`⚠️  ${activeHandles} active handles remaining`);
+          }
+        }
+      });
+    }, 100);
   });
 
   beforeEach(async () => {

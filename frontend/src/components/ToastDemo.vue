@@ -1,4 +1,4 @@
-<!-- 
+<!--
   @fileoverview Example component demonstrating toast notifications
   @component ToastDemo
 -->
@@ -20,7 +20,7 @@
                 >
                   Success Toast
                 </v-btn>
-                
+
                 <v-btn
                   color="error"
                   variant="elevated"
@@ -29,7 +29,7 @@
                 >
                   Error Toast
                 </v-btn>
-                
+
                 <v-btn
                   color="warning"
                   variant="elevated"
@@ -38,7 +38,7 @@
                 >
                   Warning Toast
                 </v-btn>
-                
+
                 <v-btn
                   color="info"
                   variant="elevated"
@@ -48,19 +48,19 @@
                   Info Toast
                 </v-btn>
               </v-col>
-              
+
               <v-col cols="12" md="6">
                 <h3>Export Status Simulation</h3>
                 <v-btn
                   color="orange"
                   variant="elevated"
                   class="ma-2"
-                  @click="simulateStatusFlow"
                   :loading="simulatingStatus"
+                  @click="simulateStatusFlow"
                 >
                   Simulate Status Changes
                 </v-btn>
-                
+
                 <v-btn
                   color="blue"
                   variant="elevated"
@@ -69,7 +69,7 @@
                 >
                   Pending Status
                 </v-btn>
-                
+
                 <v-btn
                   color="purple"
                   variant="elevated"
@@ -78,7 +78,7 @@
                 >
                   Processing Status
                 </v-btn>
-                
+
                 <v-btn
                   color="green"
                   variant="elevated"
@@ -87,7 +87,7 @@
                 >
                   Completed Status
                 </v-btn>
-                
+
                 <v-btn
                   color="red"
                   variant="elevated"
@@ -96,9 +96,9 @@
                 >
                   Failed Status
                 </v-btn>
-                
+
                 <v-divider class="my-4" />
-                
+
                 <v-btn
                   color="error"
                   variant="outlined"
@@ -107,23 +107,23 @@
                 >
                   Clear All Toasts
                 </v-btn>
-                
+
                 <v-btn
                   color="primary"
                   variant="outlined"
                   class="ma-2"
-                  @click="simulateExportFlow"
                   :loading="simulatingExport"
+                  @click="simulateExportFlow"
                 >
                   Full Export Flow
                 </v-btn>
-                
+
                 <v-btn
                   color="secondary"
                   variant="outlined"
                   class="ma-2"
-                  @click="simulateDownloadFlow"
                   :loading="simulatingDownload"
+                  @click="simulateDownloadFlow"
                 >
                   Download Flow
                 </v-btn>
@@ -139,7 +139,7 @@
 <script setup>
 /**
  * Demo component for testing toast notifications
- * 
+ *
  * This component provides buttons to test different types of toast notifications
  * and simulates the export/download flow to demonstrate real-world usage.
  */
@@ -159,59 +159,50 @@ const simulatingStatus = ref(false)
 
 // Methods
 function showSuccessToast() {
-  toastStore.showSuccess(
-    'Operation completed successfully!',
-    {
-      actions: [
-        {
-          label: 'View Details',
-          handler: () => console.log('View details clicked')
-        }
-      ]
-    }
-  )
+  toastStore.showSuccess('Operation completed successfully!', {
+    actions: [
+      {
+        label: 'View Details',
+        handler: () => console.log('View details clicked')
+      }
+    ]
+  })
 }
 
 function showErrorToast() {
-  toastStore.showError(
-    'Something went wrong. Please try again.',
-    {
-      actions: [
-        {
-          label: 'Retry',
-          handler: () => {
-            toastStore.showInfo('Retrying operation...')
-          }
-        },
-        {
-          label: 'Report Bug',
-          handler: () => console.log('Report bug clicked')
+  toastStore.showError('Something went wrong. Please try again.', {
+    actions: [
+      {
+        label: 'Retry',
+        handler: () => {
+          toastStore.showInfo('Retrying operation...')
         }
-      ]
-    }
-  )
+      },
+      {
+        label: 'Report Bug',
+        handler: () => console.log('Report bug clicked')
+      }
+    ]
+  })
 }
 
 function showWarningToast() {
-  toastStore.showWarning(
-    'This action cannot be undone. Are you sure?',
-    {
-      actions: [
-        {
-          label: 'Continue',
-          handler: () => {
-            toastStore.showSuccess('Action completed!')
-          }
-        },
-        {
-          label: 'Cancel',
-          handler: () => {
-            toastStore.showInfo('Action cancelled')
-          }
+  toastStore.showWarning('This action cannot be undone. Are you sure?', {
+    actions: [
+      {
+        label: 'Continue',
+        handler: () => {
+          toastStore.showSuccess('Action completed!')
         }
-      ]
-    }
-  )
+      },
+      {
+        label: 'Cancel',
+        handler: () => {
+          toastStore.showInfo('Action cancelled')
+        }
+      }
+    ]
+  })
 }
 
 function showInfoToast() {
@@ -231,24 +222,21 @@ function showInfoToast() {
 
 async function simulateExportFlow() {
   simulatingExport.value = true
-  
+
   // Step 1: Export creation
-  toastStore.showSuccess(
-    'Export request created successfully! Format: CSV',
-    {
-      timeout: 3000,
-      actions: [
-        {
-          label: 'View Progress',
-          handler: () => console.log('View progress clicked')
-        }
-      ]
-    }
-  )
-  
+  toastStore.showSuccess('Export request created successfully! Format: CSV', {
+    timeout: 3000,
+    actions: [
+      {
+        label: 'View Progress',
+        handler: () => console.log('View progress clicked')
+      }
+    ]
+  })
+
   // Wait 2 seconds
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
   // Step 2: Export completion
   toastStore.showSuccess(
     'Export "tasks-export.csv" completed! File size: 2.4 MB',
@@ -268,15 +256,15 @@ async function simulateExportFlow() {
       ]
     }
   )
-  
+
   simulatingExport.value = false
 }
 
 async function simulateDownloadFlow() {
   simulatingDownload.value = true
-  
+
   // Step 1: Starting download
-  const downloadToastId = toastStore.showInfo(
+  const _downloadToastId = toastStore.showInfo(
     'Starting download of tasks-export.csv...',
     {
       timeout: 2000,
@@ -288,42 +276,36 @@ async function simulateDownloadFlow() {
       ]
     }
   )
-  
+
   // Wait 1 second
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+
   // Step 2: Progress update (for large files)
-  const progressToastId = toastStore.showInfo(
-    'Downloading... 50%',
-    {
-      persistent: true,
-      actions: [
-        {
-          label: 'Hide',
-          handler: (toast) => toastStore.hideToast(toast.id)
-        }
-      ]
-    }
-  )
-  
+  const progressToastId = toastStore.showInfo('Downloading... 50%', {
+    persistent: true,
+    actions: [
+      {
+        label: 'Hide',
+        handler: (toast) => toastStore.hideToast(toast.id)
+      }
+    ]
+  })
+
   // Wait 2 seconds
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
   // Step 3: Download completed
   toastStore.hideToast(progressToastId)
-  toastStore.showSuccess(
-    'Download completed successfully! File size: 2.4 MB',
-    {
-      timeout: 5000,
-      actions: [
-        {
-          label: 'Download Again',
-          handler: () => simulateDownloadFlow()
-        }
-      ]
-    }
-  )
-  
+  toastStore.showSuccess('Download completed successfully! File size: 2.4 MB', {
+    timeout: 5000,
+    actions: [
+      {
+        label: 'Download Again',
+        handler: () => simulateDownloadFlow()
+      }
+    ]
+  })
+
   simulatingDownload.value = false
 }
 
@@ -386,24 +368,24 @@ function showFailedStatus() {
 
 async function simulateStatusFlow() {
   simulatingStatus.value = true
-  
+
   // Step 1: Pending
   showPendingStatus()
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
   // Step 2: Processing
   showProcessingStatus()
-  await new Promise(resolve => setTimeout(resolve, 3000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 3000))
+
   // Step 3: Randomly choose completed or failed
   const success = Math.random() > 0.3 // 70% success rate
-  
+
   if (success) {
     showCompletedStatus()
   } else {
     showFailedStatus()
   }
-  
+
   simulatingStatus.value = false
 }
 </script>

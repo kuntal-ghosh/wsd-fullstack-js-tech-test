@@ -41,7 +41,7 @@ export const setSocketHandlers = (handlers) => {
 router.post('/exports', validateExportRequest, async (req, res, next) => {
   try {
     const { format, filters = {}, filename } = req.body;
-    
+
     // Create export
     const exportDoc = await ExportService.createExport(filters, format, filename);
 
@@ -84,7 +84,7 @@ router.post('/exports', validateExportRequest, async (req, res, next) => {
       error.code = 'INVALID_EXPORT_FORMAT';
       error.statusCode = 400;
     }
-    
+
     next(error);
   }
 });
@@ -151,7 +151,7 @@ router.get('/exports/:id/download', validateExportId, async (req, res, next) => 
         `Export is not ready for download. Current status: ${exportDoc.status}`,
         409,
         'EXPORT_NOT_READY',
-        { 
+        {
           status: exportDoc.status,
           progress: exportDoc.progress
         }
@@ -183,7 +183,7 @@ router.get('/exports/:id/download', validateExportId, async (req, res, next) => 
 
     try {
       await fs.access(exportDoc.filePath);
-    } catch (error) {
+    } catch {
       throw new AppError(
         'Export file not found on server',
         404,
@@ -194,8 +194,8 @@ router.get('/exports/:id/download', validateExportId, async (req, res, next) => 
 
     // Set appropriate headers
     const fileName = path.basename(exportDoc.filePath);
-    const contentType = exportDoc.format === 'csv' 
-      ? 'text/csv' 
+    const contentType = exportDoc.format === 'csv'
+      ? 'text/csv'
       : 'application/json';
 
     res.setHeader('Content-Type', contentType);
@@ -227,9 +227,9 @@ router.get('/exports/:id/download', validateExportId, async (req, res, next) => 
  */
 router.get('/exports', validatePagination, async (req, res, next) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
+    const {
+      page = 1,
+      limit = 10,
       sortBy = 'createdAt',
       sortOrder = 'desc',
       status,
@@ -240,17 +240,17 @@ router.get('/exports', validatePagination, async (req, res, next) => {
 
     // Build query
     const query = {};
-    
+
     // Status filter
     if (status && ['processing', 'completed', 'failed'].includes(status)) {
       query.status = status;
     }
-    
+
     // Format filter
     if (format && ['csv', 'json'].includes(format)) {
       query.format = format;
     }
-    
+
     // Date range filter
     if (dateFrom || dateTo) {
       query.createdAt = {};
@@ -264,7 +264,6 @@ router.get('/exports', validatePagination, async (req, res, next) => {
         query.createdAt.$lt = endDate;
       }
     }
-
 
     // Get exports with pagination
     const exports = await Export.find(query)

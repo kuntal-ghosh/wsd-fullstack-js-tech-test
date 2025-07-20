@@ -45,10 +45,10 @@ const notFound = (req, res, next) => {
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
-  
+
   // Log error
   console.error('Error:', {
     message: error.message,
@@ -79,15 +79,15 @@ const errorHandler = (err, req, res, next) => {
   if (err.message && err.message.includes('Export not found')) {
     error = new AppError(err.message, 404, 'EXPORT_NOT_FOUND');
   }
-  
+
   if (err.message && err.message.includes('not ready for download')) {
     error = new AppError(err.message, 409, 'EXPORT_NOT_READY');
   }
-  
+
   if (err.message && err.message.includes('Export has expired')) {
     error = new AppError(err.message, 410, 'EXPORT_EXPIRED');
   }
-  
+
   if (err.message && err.message.includes('file not found')) {
     error = new AppError(err.message, 404, 'EXPORT_FILE_NOT_FOUND');
   }
@@ -96,7 +96,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.code === 'ENOENT') {
     error = new AppError('File not found', 404, 'FILE_NOT_FOUND');
   }
-  
+
   if (err.code === 'EACCES') {
     error = new AppError('Permission denied accessing file', 403, 'FILE_ACCESS_DENIED');
   }
@@ -108,7 +108,7 @@ const errorHandler = (err, req, res, next) => {
     message: error.message || 'Internal Server Error',
     code: error.code || err.code || 'INTERNAL_ERROR'
   };
-  
+
   // Add details if available
   if (error.details || err.details) {
     errorResponse.errors = error.details || err.details;

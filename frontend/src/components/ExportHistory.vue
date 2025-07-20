@@ -146,7 +146,7 @@
                   offset-y
                   min-width="auto"
                 >
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-text-field
                       v-model="formattedDateFrom"
                       label="From Date"
@@ -158,8 +158,8 @@
                       clearable
                       class="date-input"
                       v-bind="props"
-                      @click:clear="clearFromDate"
                       placeholder="Select date..."
+                      @click:clear="clearFromDate"
                     />
                   </template>
                   <v-card class="date-picker-card">
@@ -199,7 +199,7 @@
                   offset-y
                   min-width="auto"
                 >
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-text-field
                       v-model="formattedDateTo"
                       label="To Date"
@@ -211,8 +211,8 @@
                       clearable
                       class="date-input"
                       v-bind="props"
-                      @click:clear="clearToDate"
                       placeholder="Select date..."
+                      @click:clear="clearToDate"
                     />
                   </template>
                   <v-card class="date-picker-card">
@@ -281,7 +281,11 @@
                   @click="toggleSort('createdAt')"
                 >
                   <v-icon start size="small">
-                    {{ sortBy === 'createdAt' && sortOrder === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                    {{
+                      sortBy === 'createdAt' && sortOrder === 'desc'
+                        ? 'mdi-arrow-down'
+                        : 'mdi-arrow-up'
+                    }}
                   </v-icon>
                   Date
                 </v-chip>
@@ -295,7 +299,11 @@
                   @click="toggleSort('fileSize')"
                 >
                   <v-icon start size="small">
-                    {{ sortBy === 'fileSize' && sortOrder === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                    {{
+                      sortBy === 'fileSize' && sortOrder === 'desc'
+                        ? 'mdi-arrow-down'
+                        : 'mdi-arrow-up'
+                    }}
                   </v-icon>
                   Size
                 </v-chip>
@@ -309,7 +317,11 @@
                   @click="toggleSort('totalRecords')"
                 >
                   <v-icon start size="small">
-                    {{ sortBy === 'totalRecords' && sortOrder === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                    {{
+                      sortBy === 'totalRecords' && sortOrder === 'desc'
+                        ? 'mdi-arrow-down'
+                        : 'mdi-arrow-up'
+                    }}
                   </v-icon>
                   Records
                 </v-chip>
@@ -348,10 +360,12 @@
             <v-icon size="32" color="success">mdi-file-excel</v-icon>
           </div>
         </div>
-        
+
         <!-- Central empty folder icon -->
         <div class="empty-folder">
-          <v-icon size="80" color="grey-lighten-2">mdi-folder-open-outline</v-icon>
+          <v-icon size="80" color="grey-lighten-2"
+            >mdi-folder-open-outline</v-icon
+          >
           <div class="folder-shine"></div>
         </div>
       </div>
@@ -359,15 +373,20 @@
       <!-- Text content -->
       <div class="text-center">
         <h3 class="text-h5 mb-3 text-grey-darken-2">
-          {{ hasActiveFilters ? 'No exports match your filters' : 'No export history yet' }}
+          {{
+            hasActiveFilters
+              ? 'No exports match your filters'
+              : 'No export history yet'
+          }}
         </h3>
-        <p class="text-body-1 text-grey mb-4" style="max-width: 400px;">
-          {{ hasActiveFilters 
-            ? 'Try adjusting your filters or create a new export to get started.' 
-            : 'Start by exporting your task data to see your export history here.' 
+        <p class="text-body-1 text-grey mb-4" style="max-width: 400px">
+          {{
+            hasActiveFilters
+              ? 'Try adjusting your filters or create a new export to get started.'
+              : 'Start by exporting your task data to see your export history here.'
           }}
         </p>
-        
+
         <!-- Action buttons -->
         <div class="d-flex gap-3 justify-center flex-wrap">
           <v-btn
@@ -425,17 +444,17 @@
       @update:sort-by="handleSortChange"
     >
       <!-- Date column -->
-      <template #item.createdAt="{ item }">
+      <template v-slot:[`item.createdAt`]="{ item }">
         <span data-test="export-date">{{ formatDate(item.createdAt) }}</span>
       </template>
 
       <!-- Format column -->
-      <template #item.format="{ item }">
+      <template v-slot:[`item.format`]="{ item }">
         <span data-test="export-format">{{ item.format.toUpperCase() }}</span>
       </template>
 
       <!-- Status column -->
-      <template #item.status="{ item }">
+      <template v-slot:[`item.status`]="{ item }">
         <v-chip
           size="small"
           :color="getStatusColor(item.status)"
@@ -449,7 +468,7 @@
       </template>
 
       <!-- Records column -->
-      <template #item.totalRecords="{ item }">
+      <template v-slot:[`item.totalRecords`]="{ item }">
         <div class="text-center">
           <span data-test="export-records">
             {{ item.totalRecords || '-' }}
@@ -458,7 +477,7 @@
       </template>
 
       <!-- Size column -->
-      <template #item.fileSize="{ item }">
+      <template v-slot:[`item.fileSize`]="{ item }">
         <div class="text-center">
           <span data-test="export-size">
             {{ item.fileSize ? formatFileSize(item.fileSize) : '-' }}
@@ -467,7 +486,7 @@
       </template>
 
       <!-- Actions column -->
-      <template #item.actions="{ item }">
+      <template v-slot:[`item.actions`]="{ item }">
         <div class="d-flex gap-2 justify-center">
           <!-- Download button for completed exports -->
           <v-btn
@@ -576,17 +595,24 @@
 
       <!-- Pagination controls -->
       <template #bottom>
-        <div class="d-flex justify-space-between align-center pa-4" data-test="pagination">
+        <div
+          class="d-flex justify-space-between align-center pa-4"
+          data-test="pagination"
+        >
           <div class="d-flex align-center">
             <span class="text-sm text-medium-emphasis mr-4">
-              Showing {{ Math.min((currentPage - 1) * itemsPerPage + 1, totalItems) }}-{{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} exports
+              Showing
+              {{
+                Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)
+              }}-{{ Math.min(currentPage * itemsPerPage, totalItems) }} of
+              {{ totalItems }} exports
             </span>
             <v-select
               v-model="itemsPerPage"
               :items="itemsPerPageOptions"
               variant="outlined"
               density="compact"
-              style="min-width: 120px; max-width: 120px;"
+              style="min-width: 120px; max-width: 120px"
               hide-details
               data-test="items-per-page"
               @update:model-value="onItemsPerPageChange"
@@ -601,20 +627,20 @@
               </template>
             </v-select>
           </div>
-          
+
           <v-pagination
             v-model="currentPage"
             :length="totalPages"
             :total-visible="7"
             @update:model-value="onPageChange"
           >
-            <template #prev="slotProps">
-              <v-btn v-bind="slotProps" data-test="prev-page">
+            <template #prev="{ props }">
+              <v-btn v-bind="props" data-test="prev-page">
                 <v-icon>mdi-chevron-left</v-icon>
               </v-btn>
             </template>
-            <template #next="slotProps">
-              <v-btn v-bind="slotProps" data-test="next-page">
+            <template #next="{ props }">
+              <v-btn v-bind="props" data-test="next-page">
                 <v-icon>mdi-chevron-right</v-icon>
               </v-btn>
             </template>
@@ -996,9 +1022,7 @@
             v-if="detailsDialog.item.status === 'completed'"
             color="primary"
             prepend-icon="mdi-download"
-            :loading="
-              downloadProgress[detailsDialog.item.id]?.downloading
-            "
+            :loading="downloadProgress[detailsDialog.item.id]?.downloading"
             @click="handleDownload(detailsDialog.item)"
           >
             Download
@@ -1018,7 +1042,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
   </v-card>
 </template>
 
@@ -1115,7 +1138,9 @@ const activeFiltersCount = computed(() => {
 
 // Formatted date display
 const formattedDateFrom = computed(() => {
-  return filters.value.dateFrom ? formatDateForDisplay(filters.value.dateFrom) : ''
+  return filters.value.dateFrom
+    ? formatDateForDisplay(filters.value.dateFrom)
+    : ''
 })
 
 const formattedDateTo = computed(() => {
@@ -1245,7 +1270,7 @@ function toggleSort(field) {
     sortBy.value = field
     sortOrder.value = 'desc'
   }
-  
+
   // Reset to first page when changing sort
   currentPage.value = 1
   fetchHistory()
@@ -1729,7 +1754,11 @@ defineExpose({
 /* Beautiful Empty State Styling */
 .empty-state-container {
   min-height: 400px;
-  background: linear-gradient(135deg, rgba(var(--v-theme-surface-variant), 0.3) 0%, rgba(var(--v-theme-primary), 0.05) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-surface-variant), 0.3) 0%,
+    rgba(var(--v-theme-primary), 0.05) 100%
+  );
   border-radius: 16px;
   position: relative;
   overflow: hidden;
@@ -1742,7 +1771,11 @@ defineExpose({
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.1) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(var(--v-theme-primary), 0.1) 0%,
+    transparent 70%
+  );
   animation: shimmer 6s ease-in-out infinite;
 }
 
@@ -1803,7 +1836,8 @@ defineExpose({
 
 /* Keyframe Animations */
 @keyframes shimmer {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(0deg);
     opacity: 0.5;
   }
@@ -1814,7 +1848,8 @@ defineExpose({
 }
 
 @keyframes gentle-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -1823,7 +1858,8 @@ defineExpose({
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) rotate(0deg);
     opacity: 0.7;
   }
@@ -1877,7 +1913,11 @@ defineExpose({
 }
 
 .date-picker-card .v-card-title {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-secondary))) !important;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-primary)),
+    rgb(var(--v-theme-secondary))
+  ) !important;
   border-radius: 0;
   min-height: 56px;
 }
@@ -1950,16 +1990,16 @@ defineExpose({
     min-height: 350px;
     padding: 32px 16px;
   }
-  
+
   .floating-documents {
     width: 150px;
     height: 150px;
   }
-  
+
   .empty-folder .v-icon {
     font-size: 60px !important;
   }
-  
+
   .date-picker-card {
     margin: 8px;
     max-width: calc(100vw - 32px) !important;

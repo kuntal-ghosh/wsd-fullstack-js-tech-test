@@ -1,4 +1,4 @@
-<!-- 
+<!--
   @fileoverview Toast notification component with Vuetify styling
   @component ToastContainer
 -->
@@ -16,7 +16,7 @@
           location="top right"
           variant="elevated"
           class="toast-item"
-          :style="{ 
+          :style="{
             position: 'fixed',
             zIndex: 9999,
             top: `${getToastPosition(toast)}px`,
@@ -32,7 +32,7 @@
               class="mr-3"
               :color="getIconColor(toast.type)"
             />
-            
+
             <div class="flex-grow-1">
               <div class="toast-message">{{ toast.message }}</div>
               <div v-if="toast.timestamp" class="toast-timestamp">
@@ -41,7 +41,7 @@
             </div>
           </div>
 
-          <template v-slot:actions>
+          <template #actions>
             <!-- Custom actions if provided -->
             <template v-if="toast.actions">
               <v-btn
@@ -73,7 +73,7 @@
 <script setup>
 /**
  * Toast container component for displaying temporary notifications
- * 
+ *
  * Features:
  * - Multiple toast types (success, error, warning, info)
  * - Auto-positioning with stacking
@@ -89,8 +89,8 @@ import { useToastStore } from '../stores/toastStore.js'
 const toastStore = useToastStore()
 
 // Computed properties
-const visibleToasts = computed(() => 
-  toastStore.toasts.filter(toast => toast.visible)
+const visibleToasts = computed(() =>
+  toastStore.toasts.filter((toast) => toast.visible)
 )
 
 // Methods
@@ -98,27 +98,27 @@ function hideToast(id) {
   toastStore.hideToast(id)
 }
 
-function getToastColor(type) {
+function getToastColor(toastType) {
   const colors = {
     success: 'success',
     error: 'error',
     warning: 'warning',
     info: 'info'
   }
-  return colors[type] || 'info'
+  return colors[toastType] || 'info'
 }
 
-function getToastIcon(type) {
+function getToastIcon(toastType) {
   const icons = {
     success: 'mdi-check-circle',
     error: 'mdi-alert-circle',
     warning: 'mdi-alert',
     info: 'mdi-information'
   }
-  return icons[type] || 'mdi-information'
+  return icons[toastType] || 'mdi-information'
 }
 
-function getIconColor(type) {
+function getIconColor(_toastType) {
   // Use white for all types since we're using colored backgrounds
   return 'white'
 }
@@ -126,14 +126,14 @@ function getIconColor(type) {
 function getToastPosition(toast) {
   const baseTop = 24
   const toastHeight = 72 // Approximate height including margin
-  const index = visibleToasts.value.findIndex(t => t.id === toast.id)
-  return baseTop + (index * toastHeight)
+  const index = visibleToasts.value.findIndex((t) => t.id === toast.id)
+  return baseTop + index * toastHeight
 }
 
 function formatTimestamp(timestamp) {
   const date = new Date(timestamp)
-  return date.toLocaleTimeString([], { 
-    hour: '2-digit', 
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
   })
@@ -143,7 +143,7 @@ function handleActionClick(action, toast) {
   if (typeof action.handler === 'function') {
     action.handler(toast)
   }
-  
+
   // Auto-hide toast after action unless specified otherwise
   if (action.autoHide !== false) {
     hideToast(toast.id)

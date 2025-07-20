@@ -44,15 +44,15 @@ const Dashboard = {
 describe('Dashboard Export Real-time Updates', () => {
   let pinia
   let analyticsStore
-  
+
   beforeEach(() => {
     // Create fresh Pinia instance for each test
     pinia = createPinia()
     setActivePinia(pinia)
-    
+
     // Get the analytics store
     analyticsStore = useAnalyticsStore()
-    
+
     // Initialize with mock data
     analyticsStore.analytics = {
       totalTasks: 100,
@@ -70,7 +70,7 @@ describe('Dashboard Export Real-time Updates', () => {
       }
     }
   })
-  
+
   afterEach(() => {
     vi.resetAllMocks()
   })
@@ -125,7 +125,7 @@ describe('Dashboard Export Real-time Updates', () => {
     // Simulate an export completing, increasing success rate
     analyticsStore.updateAnalytics({
       exportMetrics: {
-        totalExports: 26, 
+        totalExports: 26,
         activeExports: 2, // Decreased (one completed)
         completedExports: 22, // Increased
         failedExports: 2,

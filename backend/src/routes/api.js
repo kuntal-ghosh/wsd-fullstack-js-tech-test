@@ -304,4 +304,20 @@ router.get('/health', (req, res) => {
   });
 });
 
+/**
+ * GET /health/ping - Ultra lightweight connection test endpoint
+ * @name ConnectionPing
+ * @function
+ * @returns {string} Simple OK response for connectivity checks
+ */
+router.get('/health/ping', (req, res) => {
+  // Set cache control headers to prevent caching
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
+  // Return minimal response for quick network checking
+  res.send('OK');
+});
+
 export default router;

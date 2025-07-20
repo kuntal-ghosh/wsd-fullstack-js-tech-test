@@ -924,10 +924,8 @@ describe('Export API Client', () => {
       await apiClient.getExportHistory(filtersWithSpecialChars)
 
       const callUrl = global.fetch.mock.calls[0][0]
-      expect(callUrl).toContain(
-        'search=project+name+with+spaces+%26+symbols%21'
-      )
-      expect(callUrl).toContain('dateFrom=2024-01-01T10%3A00%3A00%2B05%3A30')
+      expect(callUrl.includes('search=project%20name%20with%20spaces%20%26%20symbols!')).toBe(true)
+      expect(callUrl.includes('dateFrom=2024-01-01T10%3A00%3A00%2B05%3A30')).toBe(true)
     })
   })
 

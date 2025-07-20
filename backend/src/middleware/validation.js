@@ -12,7 +12,7 @@ import Joi from 'joi';
  */
 const sanitizeInput = (input) => {
   if (typeof input !== 'string') return input;
-  
+
   return input
     .replace(/[<>]/g, '') // Remove HTML tags
     .replace(/javascript:/gi, '') // Remove javascript: protocol
@@ -31,12 +31,12 @@ const sanitizeFilters = (filters) => {
   }
 
   const sanitized = {};
-  
+
   // Sanitize text fields
   if (filters.search) {
     sanitized.search = sanitizeInput(filters.search);
   }
-  
+
   // Handle status arrays or single values
   if (filters.status) {
     if (Array.isArray(filters.status)) {
@@ -45,7 +45,7 @@ const sanitizeFilters = (filters) => {
       sanitized.status = sanitizeInput(filters.status);
     }
   }
-  
+
   // Handle priority arrays or single values
   if (filters.priority) {
     if (Array.isArray(filters.priority)) {
@@ -54,7 +54,7 @@ const sanitizeFilters = (filters) => {
       sanitized.priority = sanitizeInput(filters.priority);
     }
   }
-  
+
   // Copy other safe fields
   const safeFields = ['dateFrom', 'dateTo', 'estimatedTimeMin', 'estimatedTimeMax'];
   safeFields.forEach(field => {
@@ -62,7 +62,7 @@ const sanitizeFilters = (filters) => {
       sanitized[field] = filters[field];
     }
   });
-  
+
   return sanitized;
 };
 
@@ -82,7 +82,7 @@ export const validateExportRequest = (req, res, next) => {
   const validateStatus = (value, helpers) => {
     // Handle array or single value
     const statuses = Array.isArray(value) ? value : [value];
-    
+
     for (const status of statuses) {
       if (!validStatuses.includes(status)) {
         return helpers.error('any.invalid', { value: status });
@@ -95,7 +95,7 @@ export const validateExportRequest = (req, res, next) => {
   const validatePriority = (value, helpers) => {
     // Handle array or single value
     const priorities = Array.isArray(value) ? value : [value];
-    
+
     for (const priority of priorities) {
       if (!validPriorities.includes(priority)) {
         return helpers.error('any.invalid', { value: priority });
@@ -105,64 +105,56 @@ export const validateExportRequest = (req, res, next) => {
   };
 
   // Define validation schema for export request
-const schema = Joi.object({
+  const schema = Joi.object({
     format: Joi.string().valid('csv', 'json').required()
-        .messages({
-            'any.required': 'format is required',
-            'any.only': 'format must be a valid format (csv or json)'
-        }),
+      .messages({
+        'any.required': 'format is required',
+        'any.only': 'format must be a valid format (csv or json)'
+      }),
     filters: Joi.object({
-        status: Joi.alternatives().try(
-            Joi.string().custom(validateStatus),
-            Joi.array().items(Joi.string()).custom(validateStatus)
-        ).messages({
-            'any.invalid': 'status must be a valid status value'
+      status: Joi.alternatives().try(
+        Joi.string().custom(validateStatus),
+        Joi.array().items(Joi.string()).custom(validateStatus)
+      ).messages({
+        'any.invalid': 'status must be a valid status value'
+      }),
+      priority: Joi.alternatives().try(
+        Joi.string().custom(validatePriority),
+        Joi.array().items(Joi.string()).custom(validatePriority)
+      ).messages({
+        'any.invalid': 'priority must be a valid priority value'
+      }),
+      dateFrom: Joi.date().iso()
+        .messages({
+          'date.base': 'dateFrom must be a valid date',
+          'date.format': 'dateFrom must be a valid ISO date'
         }),
-        priority: Joi.alternatives().try(
-            Joi.string().custom(validatePriority),
-            Joi.array().items(Joi.string()).custom(validatePriority)
-        ).messages({
-            'any.invalid': 'priority must be a valid priority value'
+      dateTo: Joi.date().iso().min(Joi.ref('dateFrom'))
+        .messages({
+          'date.base': 'dateTo must be a valid date',
+          'date.format': 'dateTo must be a valid ISO date',
+          'date.min': 'dateTo must be greater than or equal to dateFrom'
         }),
-        dateFrom: Joi.alternatives()
-            .try(
-                Joi.string().allow(''),
-                Joi.date().iso()
-            )
-            .messages({
-                'date.base': 'dateFrom must be a valid date',
-                'date.format': 'dateFrom must be a valid ISO date'
-            }),
-        dateTo: Joi.alternatives()
-            .try(
-                Joi.string().allow(''),
-                Joi.date().iso().min(Joi.ref('dateFrom'))
-            )
-            .messages({
-                'date.base': 'dateTo must be a valid date',
-                'date.format': 'dateTo must be a valid ISO date',
-                'date.min': 'dateTo must be greater than or equal to dateFrom'
-            }),
-        search: Joi.string().max(255).messages({
-            'string.max': 'search must be less than or equal to 255 characters in length'
-        }),
-        estimatedTimeMin: Joi.number().min(0).messages({
-            'number.base': 'estimatedTimeMin must be a number',
-            'number.min': 'estimatedTimeMin must be greater than or equal to 0'
-        }),
-        estimatedTimeMax: Joi.number().min(Joi.ref('estimatedTimeMin')).messages({
-            'number.base': 'estimatedTimeMax must be a number',
-            'number.min': 'estimatedTimeMax must be greater than or equal to ref:estimatedTimeMin'
-        })
+      search: Joi.string().max(255).messages({
+        'string.max': 'search must be less than or equal to 255 characters in length'
+      }),
+      estimatedTimeMin: Joi.number().min(0).messages({
+        'number.base': 'estimatedTimeMin must be a number',
+        'number.min': 'estimatedTimeMin must be greater than or equal to 0'
+      }),
+      estimatedTimeMax: Joi.number().min(Joi.ref('estimatedTimeMin')).messages({
+        'number.base': 'estimatedTimeMax must be a number',
+        'number.min': 'estimatedTimeMax must be greater than or equal to ref:estimatedTimeMin'
+      })
     }).default({}),
     filename: Joi.string().max(255).pattern(/^[a-zA-Z0-9_\-. ]+$/).allow(null, '').messages({
-        'string.max': 'filename must be less than or equal to 255 characters in length',
-        'string.pattern.base': 'filename contains invalid characters'
+      'string.max': 'filename must be less than or equal to 255 characters in length',
+      'string.pattern.base': 'filename contains invalid characters'
     }),
     userId: Joi.string().max(100).allow(null, '').messages({
-        'string.max': 'userId must be less than or equal to 100 characters in length'
+      'string.max': 'userId must be less than or equal to 100 characters in length'
     })
-});
+  });
 
   // Apply sanitization to the filters
   if (req.body && req.body.filters) {
@@ -170,18 +162,18 @@ const schema = Joi.object({
   }
 
   // Validate request body against schema
-  const { error, value } = schema.validate(req.body, { 
+  const { error, value } = schema.validate(req.body, {
     abortEarly: false,
     stripUnknown: true
   });
-  
+
   // Handle validation errors
   if (error) {
     // Format error details for the response
     const details = error.details.map(detail => {
       // Adjust field path if needed
       let field = detail.path.join('.');
-      
+
       // Special handling for array items in status or priority
       if (field.match(/filters\.status\.\d+/) || field === 'filters.status') {
         field = 'filters.status';
@@ -189,13 +181,13 @@ const schema = Joi.object({
       if (field.match(/filters\.priority\.\d+/) || field === 'filters.priority') {
         field = 'filters.priority';
       }
-      
+
       return {
         field,
         message: detail.message
       };
     });
-    
+
     return res.status(400).json({
       success: false,
       message: 'Validation error',
@@ -217,7 +209,7 @@ const schema = Joi.object({
  */
 export const validateExportId = (req, res, next) => {
   const { id } = req.params;
-  
+
   // Validate ID format (MongoDB ObjectId is 24 hex characters)
   if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
     return res.status(400).json({
@@ -229,7 +221,7 @@ export const validateExportId = (req, res, next) => {
       }]
     });
   }
-  
+
   next();
 };
 
@@ -268,11 +260,11 @@ export const validatePagination = (req, res, next) => {
     })
   });
 
-  const { error, value } = schema.validate(req.query, { 
+  const { error, value } = schema.validate(req.query, {
     abortEarly: false,
     stripUnknown: true
   });
-  
+
   if (error) {
     return res.status(400).json({
       success: false,
@@ -283,7 +275,7 @@ export const validatePagination = (req, res, next) => {
       }))
     });
   }
-  
+
   req.pagination = value;
   next();
 };

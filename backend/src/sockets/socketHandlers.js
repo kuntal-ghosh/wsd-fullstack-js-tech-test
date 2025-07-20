@@ -47,8 +47,16 @@ class SocketHandlers {
         }
       });
 
-      socket.on('disconnect', () => {
-        console.log(`🔌 Client disconnected: ${socket.id}`);
+      socket.on('disconnect', (reason) => {
+        console.log(`🔌 Client disconnected: ${socket.id}, reason: ${reason}`);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error(`❌ Connection error for ${socket.id}:`, error);
+      });
+
+      socket.on('error', (error) => {
+        console.error(`❌ Socket error for ${socket.id}:`, error);
       });
     });
   }
@@ -62,7 +70,7 @@ class SocketHandlers {
     try {
       const metrics = await AnalyticsService.getTaskMetrics();
       this.io.to('analytics').emit('analytics-update', metrics);
-      
+
       // Check metrics thresholds for both tasks and exports
       await this.checkMetricThresholds(metrics);
     } catch (error) {
@@ -92,16 +100,16 @@ class SocketHandlers {
    */
   broadcastNotification(notification, type = 'info') {
     // Handle both object and string parameters
-    const notificationData = typeof notification === 'string' 
+    const notificationData = typeof notification === 'string'
       ? {
-          message: notification,
-          type,
-          timestamp: new Date().toISOString()
-        }
+        message: notification,
+        type,
+        timestamp: new Date().toISOString()
+      }
       : {
-          ...notification,
-          timestamp: notification.timestamp || new Date().toISOString()
-        };
+        ...notification,
+        timestamp: notification.timestamp || new Date().toISOString()
+      };
 
     this.io.emit('notification', notificationData);
   }
@@ -133,7 +141,7 @@ class SocketHandlers {
         'warning'
       );
     }
-    
+
     // Add export metric thresholds
     if (metrics.exportMetrics && metrics.exportMetrics.exportSuccessRate < 75) {
       this.broadcastNotification(
@@ -141,7 +149,7 @@ class SocketHandlers {
         'warning'
       );
     }
-    
+
     if (metrics.exportMetrics && metrics.exportMetrics.activeExports > 10) {
       this.broadcastNotification(
         `📤 High number of active exports: ${metrics.exportMetrics.activeExports}`,
@@ -184,7 +192,7 @@ class SocketHandlers {
 
     this.io.to('exports').emit('export-status-change', statusData);
     console.log(`📤 Broadcasting export status change: ${exportId} - ${status}`);
-    
+
     // Update analytics when export status changes
     await AnalyticsService.exportStatusChanged(exportId, status);
     await this.broadcastAnalyticsUpdate();
@@ -209,7 +217,7 @@ class SocketHandlers {
       'success'
     );
     console.log(`📤 Broadcasting export completion: ${exportId}`);
-    
+
     // Update analytics when export is completed
     await AnalyticsService.onExportCompleted(exportData);
     await this.broadcastAnalyticsUpdate();
@@ -236,7 +244,7 @@ class SocketHandlers {
       'error'
     );
     console.log(`📤 Broadcasting export failure: ${exportId} - ${error}`);
-    
+
     // Update analytics when export fails
     await AnalyticsService.exportStatusChanged(exportId, 'failed');
     await this.broadcastAnalyticsUpdate();
@@ -256,7 +264,7 @@ class SocketHandlers {
 
     this.io.to('exports').emit('export-list-update', updateData);
     console.log(`📤 Broadcasting export list update: ${action} - ${exportData._id}`);
-    
+
     // Update analytics when export is created
     if (action === 'created') {
       await AnalyticsService.onExportCreated(exportData);

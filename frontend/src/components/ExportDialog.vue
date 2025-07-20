@@ -11,7 +11,7 @@
   <v-dialog v-model="dialog" max-width="600" data-test="export-dialog">
     <v-card v-if="dialog" data-test="export-dialog-content">
       <v-card-title>Export Task Data</v-card-title>
-      
+
       <v-card-text>
         <!-- Format Selection -->
         <v-radio-group
@@ -45,15 +45,17 @@
         <v-card variant="outlined" class="mt-4">
           <v-card-text>
             <div class="text-body-2 mb-2">
-              <strong>Records to export:</strong> 
+              <strong>Records to export:</strong>
               <span data-test="record-count">{{ recordCount }}</span>
             </div>
             <div class="text-body-2 mb-2">
-              <strong>Applied filters:</strong> 
-              <span data-test="filter-summary">{{ activeFiltersDescription }}</span>
+              <strong>Applied filters:</strong>
+              <span data-test="filter-summary">{{
+                activeFiltersDescription
+              }}</span>
             </div>
             <div class="text-body-2">
-              <strong>Estimated size:</strong> 
+              <strong>Estimated size:</strong>
               <span data-test="estimated-size">{{ estimatedSize }}</span>
             </div>
           </v-card-text>
@@ -76,14 +78,21 @@
 
         <!-- Detailed Error Information -->
         <v-expand-transition>
-          <div v-if="errorDetails && errorDetails.length > 0" class="mt-2" data-test="error-details">
+          <div
+            v-if="errorDetails && errorDetails.length > 0"
+            class="mt-2"
+            data-test="error-details"
+          >
             <v-list density="compact" bg-color="error-lighten-5" rounded>
               <v-list-item v-for="(detail, index) in errorDetails" :key="index">
-                <template v-slot:prepend>
-                  <v-icon color="error" size="small">mdi-alert-circle-outline</v-icon>
+                <template #prepend>
+                  <v-icon color="error" size="small"
+                    >mdi-alert-circle-outline</v-icon
+                  >
                 </template>
                 <v-list-item-subtitle>
-                  {{ detail.field ? `${detail.field}: ` : '' }}{{ detail.message }}
+                  {{ detail.field ? `${detail.field}: ` : ''
+                  }}{{ detail.message }}
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
@@ -98,17 +107,14 @@
           class="mt-4"
           data-test="empty-dataset-warning"
         >
-          No records match the current filters. Please adjust your filters or select all records.
+          No records match the current filters. Please adjust your filters or
+          select all records.
         </v-alert>
       </v-card-text>
 
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn
-          variant="text"
-          data-test="cancel-button"
-          @click="closeDialog"
-        >
+        <v-btn variant="text" data-test="cancel-button" @click="closeDialog">
           Cancel
         </v-btn>
         <v-btn
@@ -178,30 +184,30 @@ const canExport = computed(() => {
 })
 
 const errorTitle = computed(() => {
-  if (!errorCode.value) return 'Export Error';
-  
+  if (!errorCode.value) return 'Export Error'
+
   switch (errorCode.value) {
     case 'VALIDATION_ERROR':
-      return 'Validation Error';
+      return 'Validation Error'
     case 'FILE_ACCESS_DENIED':
-      return 'File Permission Error';
+      return 'File Permission Error'
     case 'EXPORT_NOT_READY':
-      return 'Export Not Ready';
+      return 'Export Not Ready'
     case 'EXPORT_PROCESSING_ERROR':
-      return 'Processing Failed';
+      return 'Processing Failed'
     case 'EXPORT_FILE_NOT_FOUND':
-      return 'File Not Found';
+      return 'File Not Found'
     case 'NETWORK_ERROR':
-      return 'Network Error';
+      return 'Network Error'
     default:
-      return 'Export Error';
+      return 'Export Error'
   }
 })
 
 const estimatedSize = computed(() => {
   const avgRecordSize = exportFormat.value === 'csv' ? 150 : 350 // Average bytes per record
   const totalBytes = recordCount.value * avgRecordSize
-  
+
   if (totalBytes < 1024) {
     return `${totalBytes} B`
   } else if (totalBytes < 1024 * 1024) {
@@ -248,7 +254,9 @@ const activeFiltersDescription = computed(() => {
     descriptions.push(`Tags: ${filters.tags.join(', ')}`)
   }
 
-  return descriptions.length > 0 ? descriptions.join('; ') : 'No filters applied'
+  return descriptions.length > 0
+    ? descriptions.join('; ')
+    : 'No filters applied'
 })
 
 // Methods
@@ -260,7 +268,7 @@ function closeDialog() {
 function handleFilenameChange() {
   // Clear validation errors when input changes
   validationErrors.value.filename = []
-  
+
   // Clear any existing error
   if (error.value) {
     error.value = null
@@ -281,7 +289,10 @@ function validateExportParams() {
   // Validate format
   if (!['csv', 'json'].includes(exportFormat.value)) {
     validationErrors.value.format.push('Invalid export format')
-    errorDetails.value.push({ field: 'format', message: 'Please select a valid format (CSV or JSON)' })
+    errorDetails.value.push({
+      field: 'format',
+      message: 'Please select a valid format (CSV or JSON)'
+    })
     isValid = false
   }
 
@@ -289,25 +300,35 @@ function validateExportParams() {
   if (customFilename.value) {
     // Check length
     if (customFilename.value.length > 255) {
-      validationErrors.value.filename.push('Filename is too long (max 255 characters)')
-      errorDetails.value.push({ field: 'filename', message: 'Filename must be less than 255 characters' })
+      validationErrors.value.filename.push(
+        'Filename is too long (max 255 characters)'
+      )
+      errorDetails.value.push({
+        field: 'filename',
+        message: 'Filename must be less than 255 characters'
+      })
       isValid = false
     }
 
     // Check for invalid characters
     if (!/^[a-zA-Z0-9_\-. ]+$/.test(customFilename.value)) {
-      validationErrors.value.filename.push('Filename contains invalid characters')
-      errorDetails.value.push({ 
-        field: 'filename', 
-        message: 'Filename can only contain letters, numbers, spaces, underscores, hyphens, and periods' 
+      validationErrors.value.filename.push(
+        'Filename contains invalid characters'
+      )
+      errorDetails.value.push({
+        field: 'filename',
+        message:
+          'Filename can only contain letters, numbers, spaces, underscores, hyphens, and periods'
       })
       isValid = false
     }
   }
-  
+
   // Validate data availability
   if (recordCount.value === 0) {
-    errorDetails.value.push({ message: 'No data available to export with current filters' })
+    errorDetails.value.push({
+      message: 'No data available to export with current filters'
+    })
     isValid = false
   }
 
@@ -324,33 +345,34 @@ function parseErrorResponse(err) {
   error.value = null
   errorDetails.value = []
   errorCode.value = null
-  
+
   // Handle API error responses
   if (err.response) {
     const { data } = err.response
-    
+
     // Use structured error from API if available
     if (data && !data.success) {
       error.value = data.message || 'Export operation failed'
       errorCode.value = data.code || 'EXPORT_ERROR'
-      
+
       // Add detailed error information if available
       if (data.details) {
-        errorDetails.value = Array.isArray(data.details) 
-          ? data.details 
+        errorDetails.value = Array.isArray(data.details)
+          ? data.details
           : [data.details]
       }
       return
     }
   }
-  
+
   // Handle network errors
   if (err.isAxiosError && !err.response) {
-    error.value = 'Unable to connect to the server. Please check your connection.'
+    error.value =
+      'Unable to connect to the server. Please check your connection.'
     errorCode.value = 'NETWORK_ERROR'
     return
   }
-  
+
   // Handle validation error objects
   if (err.name === 'ValidationError' && err.details) {
     error.value = 'Invalid export parameters'
@@ -358,7 +380,7 @@ function parseErrorResponse(err) {
     errorDetails.value = err.details
     return
   }
-  
+
   // Generic error fallback
   error.value = err.message || 'An unexpected error occurred'
   errorCode.value = err.code || 'UNKNOWN_ERROR'
@@ -366,24 +388,24 @@ function parseErrorResponse(err) {
 
 async function initiateExport() {
   if (!canExport.value) return
-  
+
   // Validate parameters
   if (!validateExportParams()) return
-  
+
   error.value = null
   errorDetails.value = null
   errorCode.value = null
   exporting.value = true
-  
+
   try {
     const exportParams = {
       format: exportFormat.value,
       filters: props.filters,
       filename: customFilename.value || undefined
     }
-    
+
     const exportRecord = await exportStore.createExport(exportParams)
-    
+
     emit('export-created', exportRecord)
     dialog.value = false
   } catch (err) {
@@ -395,17 +417,20 @@ async function initiateExport() {
 }
 
 // Clear form on close
-watch(() => props.modelValue, (value) => {
-  if (!value) {
-    // Reset form when dialog is closed
-    exportFormat.value = 'csv'
-    customFilename.value = ''
-    error.value = null
-    errorDetails.value = null
-    errorCode.value = null
-    validationErrors.value = { format: [], filename: [] }
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (!value) {
+      // Reset form when dialog is closed
+      exportFormat.value = 'csv'
+      customFilename.value = ''
+      error.value = null
+      errorDetails.value = null
+      errorCode.value = null
+      validationErrors.value = { format: [], filename: [] }
+    }
   }
-})
+)
 
 // Expose methods for testing
 defineExpose({

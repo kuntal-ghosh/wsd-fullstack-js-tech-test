@@ -18,7 +18,7 @@ describe('Toast Store', () => {
   describe('showToast', () => {
     it('should create a toast with default values', () => {
       const toastId = toastStore.showToast({ message: 'Test message' })
-      
+
       expect(toastId).toBeDefined()
       expect(toastStore.toasts).toHaveLength(1)
       expect(toastStore.toasts[0]).toMatchObject({
@@ -40,7 +40,7 @@ describe('Toast Store', () => {
         persistent: true,
         actions
       })
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         id: toastId,
         message: 'Custom message',
@@ -56,7 +56,7 @@ describe('Toast Store', () => {
   describe('convenience methods', () => {
     it('should create success toast', () => {
       toastStore.showSuccess('Success message')
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         message: 'Success message',
         type: 'success',
@@ -66,7 +66,7 @@ describe('Toast Store', () => {
 
     it('should create error toast', () => {
       toastStore.showError('Error message')
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         message: 'Error message',
         type: 'error',
@@ -77,7 +77,7 @@ describe('Toast Store', () => {
 
     it('should create warning toast', () => {
       toastStore.showWarning('Warning message')
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         message: 'Warning message',
         type: 'warning',
@@ -87,7 +87,7 @@ describe('Toast Store', () => {
 
     it('should create info toast', () => {
       toastStore.showInfo('Info message')
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         message: 'Info message',
         type: 'info',
@@ -99,19 +99,19 @@ describe('Toast Store', () => {
   describe('hideToast', () => {
     it('should mark toast as not visible', () => {
       const toastId = toastStore.showToast({ message: 'Test' })
-      
+
       toastStore.hideToast(toastId)
-      
+
       expect(toastStore.toasts[0].visible).toBe(false)
     })
 
     it('should handle invalid toast ID gracefully', () => {
       toastStore.showToast({ message: 'Test' })
-      
+
       expect(() => {
         toastStore.hideToast('invalid-id')
       }).not.toThrow()
-      
+
       expect(toastStore.toasts[0].visible).toBe(true)
     })
   })
@@ -119,12 +119,12 @@ describe('Toast Store', () => {
   describe('updateToast', () => {
     it('should update existing toast', () => {
       const toastId = toastStore.showToast({ message: 'Original' })
-      
+
       toastStore.updateToast(toastId, {
         message: 'Updated message',
         type: 'error'
       })
-      
+
       expect(toastStore.toasts[0]).toMatchObject({
         message: 'Updated message',
         type: 'error'
@@ -133,11 +133,11 @@ describe('Toast Store', () => {
 
     it('should handle invalid toast ID gracefully', () => {
       toastStore.showToast({ message: 'Test' })
-      
+
       expect(() => {
         toastStore.updateToast('invalid-id', { message: 'Updated' })
       }).not.toThrow()
-      
+
       expect(toastStore.toasts[0].message).toBe('Test')
     })
   })
@@ -146,10 +146,10 @@ describe('Toast Store', () => {
     it('should mark all toasts as not visible', () => {
       toastStore.showToast({ message: 'Toast 1' })
       toastStore.showToast({ message: 'Toast 2' })
-      
+
       toastStore.clearAllToasts()
-      
-      toastStore.toasts.forEach(toast => {
+
+      toastStore.toasts.forEach((toast) => {
         expect(toast.visible).toBe(false)
       })
     })
@@ -170,11 +170,11 @@ describe('Toast Store', () => {
         timeout: 1000,
         persistent: false
       })
-      
+
       expect(toastStore.toasts[0].visible).toBe(true)
-      
+
       vi.advanceTimersByTime(1000)
-      
+
       expect(toastStore.toasts[0].visible).toBe(false)
     })
 
@@ -184,11 +184,11 @@ describe('Toast Store', () => {
         timeout: 1000,
         persistent: true
       })
-      
+
       expect(toastStore.toasts[0].visible).toBe(true)
-      
+
       vi.advanceTimersByTime(2000)
-      
+
       expect(toastStore.toasts[0].visible).toBe(true)
     })
   })

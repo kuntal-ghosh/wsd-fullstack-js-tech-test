@@ -49,40 +49,82 @@ class AnalyticsService {
    * @returns {Promise<Object>} Comprehensive metrics object with all analytics data
    */
   static async calculateMetrics() {
-    const [
-      totalTasks,
-      tasksByStatus,
-      tasksByPriority,
-      completionRate,
-      averageCompletionTime,
-      tasksCreatedToday,
-      tasksCompletedToday,
-      recentActivity,
-      exportMetrics
-    ] = await Promise.all([
-      Task.countDocuments(),
-      this.getTasksByStatus(),
-      this.getTasksByPriority(),
-      this.getCompletionRate(),
-      this.getAverageCompletionTime(),
-      this.getTasksCreatedToday(),
-      this.getTasksCompletedToday(),
-      this.getRecentActivity(),
-      this.calculateExportMetrics()
-    ]);
+    try {
+      // Add timeout wrapper for database operations
+      const withTimeout = (promise, timeoutMs = 30000) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Operation timeout')), timeoutMs)
+          )
+        ]);
+      };
 
-    return {
-      totalTasks,
-      tasksByStatus,
-      tasksByPriority,
-      completionRate,
-      averageCompletionTime,
-      tasksCreatedToday,
-      tasksCompletedToday,
-      recentActivity,
-      exportMetrics,
-      lastUpdated: new Date().toISOString()
-    };
+      const [
+        totalTasks,
+        tasksByStatus,
+        tasksByPriority,
+        completionRate,
+        averageCompletionTime,
+        tasksCreatedToday,
+        tasksCompletedToday,
+        recentActivity,
+        exportMetrics
+      ] = await Promise.allSettled([
+        withTimeout(Task.countDocuments()),
+        withTimeout(this.getTasksByStatus()),
+        withTimeout(this.getTasksByPriority()),
+        withTimeout(this.getCompletionRate()),
+        withTimeout(this.getAverageCompletionTime()),
+        withTimeout(this.getTasksCreatedToday()),
+        withTimeout(this.getTasksCompletedToday()),
+        withTimeout(this.getRecentActivity()),
+        withTimeout(this.calculateExportMetrics())
+      ]);
+
+      // Extract values or use defaults for failed operations
+      const safeValue = (result, defaultValue = 0) =>
+        result.status === 'fulfilled' ? result.value : defaultValue;
+
+      return {
+        totalTasks: safeValue(totalTasks, 0),
+        tasksByStatus: safeValue(tasksByStatus, { pending: 0, 'in-progress': 0, completed: 0 }),
+        tasksByPriority: safeValue(tasksByPriority, { low: 0, medium: 0, high: 0 }),
+        completionRate: safeValue(completionRate, 0),
+        averageCompletionTime: safeValue(averageCompletionTime, 0),
+        tasksCreatedToday: safeValue(tasksCreatedToday, 0),
+        tasksCompletedToday: safeValue(tasksCompletedToday, 0),
+        recentActivity: safeValue(recentActivity, []),
+        exportMetrics: safeValue(exportMetrics, {
+          totalExports: 0,
+          activeExports: 0,
+          completedExports: 0,
+          failedExports: 0
+        }),
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error in calculateMetrics:', error);
+      // Return safe defaults if everything fails
+      return {
+        totalTasks: 0,
+        tasksByStatus: { pending: 0, 'in-progress': 0, completed: 0 },
+        tasksByPriority: { low: 0, medium: 0, high: 0 },
+        completionRate: 0,
+        averageCompletionTime: 0,
+        tasksCreatedToday: 0,
+        tasksCompletedToday: 0,
+        recentActivity: [],
+        exportMetrics: {
+          totalExports: 0,
+          activeExports: 0,
+          completedExports: 0,
+          failedExports: 0
+        },
+        lastUpdated: new Date().toISOString(),
+        error: 'Failed to calculate metrics'
+      };
+    }
   }
 
   /**
@@ -303,33 +345,46 @@ class AnalyticsService {
    */
   static async calculateExportMetrics() {
     try {
-      const [
-        totalExports, 
-        activeExports, 
-        completedExports, 
-        failedExports,
-        exportsByFormat,
-        exportsCreatedToday,
-        averageExportSize,
-        averageExportTime
-      ] = await Promise.all([
-        Export.countDocuments(),
-        Export.countDocuments({ status: 'processing' }),
-        Export.countDocuments({ status: 'completed' }),
-        Export.countDocuments({ status: 'failed' }),
+      // Add timeout wrapper
+      const withTimeout = (promise, timeoutMs = 15000) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Export metrics timeout')), timeoutMs)
+          )
+        ]);
+      };
+
+      const results = await Promise.allSettled([
+        withTimeout(Export.countDocuments()),
+        withTimeout(Export.countDocuments({ status: 'processing' })),
+        withTimeout(Export.countDocuments({ status: 'completed' })),
+        withTimeout(Export.countDocuments({ status: 'failed' })),
         this.getExportsByFormat(),
         this.getExportsCreatedToday(),
         this.getAverageExportSize(),
         this.getAverageExportTime()
       ]);
-      
+
+      // Extract values with safe defaults
+      const safeValue = (result, defaultValue = 0) =>
+        result.status === 'fulfilled' ? result.value : defaultValue;
+
+      const totalExports = safeValue(results[0], 0);
+      const activeExports = safeValue(results[1], 0);
+      const completedExports = safeValue(results[2], 0);
+      const failedExports = safeValue(results[3], 0);
+      const exportsByFormat = safeValue(results[4], {});
+      const exportsCreatedToday = safeValue(results[5], 0);
+      const averageExportSize = safeValue(results[6], 0);
+      const averageExportTime = safeValue(results[7], 0);
+
       // Calculate export success rate based on completed vs. (completed + failed)
-      // This matches the test expectations and ignores 'processing' exports in the calculation
       const attemptedExports = completedExports + failedExports;
-      const exportSuccessRate = attemptedExports > 0 
-        ? Math.round((completedExports / attemptedExports) * 100) 
+      const exportSuccessRate = attemptedExports > 0
+        ? Math.round((completedExports / attemptedExports) * 100)
         : 0;
-      
+
       return {
         totalExports,
         activeExports,
@@ -371,7 +426,7 @@ class AnalyticsService {
 
     const formatCounts = { csv: 0, json: 0 };
     result.forEach(item => {
-      if (item._id && formatCounts.hasOwnProperty(item._id)) {
+      if (item._id && Object.prototype.hasOwnProperty.call(formatCounts, item._id)) {
         formatCounts[item._id] = item.count;
       }
     });
@@ -458,7 +513,7 @@ class AnalyticsService {
    * @param {string} newStatus - New export status
    * @returns {Promise<void>}
    */
-  static async exportStatusChanged(exportId, newStatus) {
+  static async exportStatusChanged(_exportId, _newStatus) {
     await this.invalidateCache();
   }
 
@@ -469,7 +524,7 @@ class AnalyticsService {
    * @param {Object} exportData - Created export data
    * @returns {Promise<void>}
    */
-  static async onExportCreated(exportData) {
+  static async onExportCreated(_exportData) {
     await this.invalidateCache();
   }
 
@@ -480,7 +535,7 @@ class AnalyticsService {
    * @param {Object} exportData - Completed export data
    * @returns {Promise<void>}
    */
-  static async onExportCompleted(exportData) {
+  static async onExportCompleted(_exportData) {
     await this.invalidateCache();
   }
 }

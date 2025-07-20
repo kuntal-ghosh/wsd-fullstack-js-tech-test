@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx",
+    "lint:check": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write ."
   },
   "dependencies": {

@@ -4,49 +4,56 @@
       <v-icon color="primary" class="mr-2">mdi-file-export</v-icon>
       Export Metrics
     </v-card-title>
-    
+
     <v-card-text>
       <v-row>
         <v-col cols="6" sm="3">
           <div class="metric-value">{{ activeExports }}</div>
           <div class="metric-label">Active Exports</div>
         </v-col>
-        
+
         <v-col cols="6" sm="3">
           <div class="metric-value">{{ exportsCreatedToday }}</div>
           <div class="metric-label">Created Today</div>
         </v-col>
-        
+
         <v-col cols="6" sm="3">
-          <div class="metric-value" :class="{'success-rate-warning': showSuccessRateWarning}">
+          <div
+            class="metric-value"
+            :class="{ 'success-rate-warning': showSuccessRateWarning }"
+          >
             {{ exportSuccessRate }}
-            <v-icon v-if="showSuccessRateWarning" color="warning" small>mdi-alert</v-icon>
+            <v-icon v-if="showSuccessRateWarning" color="warning" small
+              >mdi-alert</v-icon
+            >
           </div>
           <div class="metric-label">Success Rate</div>
         </v-col>
-        
+
         <v-col cols="6" sm="3">
-          <div class="metric-value most-popular-format">{{ mostPopularFormat }}</div>
+          <div class="metric-value most-popular-format">
+            {{ mostPopularFormat }}
+          </div>
           <div class="metric-label">Most Used Format</div>
         </v-col>
       </v-row>
-      
+
       <v-divider class="my-3"></v-divider>
-      
+
       <v-row>
         <v-col cols="6">
           <div class="metric-value-secondary">{{ averageExportSize }}</div>
           <div class="metric-label">Average Size</div>
         </v-col>
-        
+
         <v-col cols="6">
           <div class="metric-value-secondary">{{ averageExportTime }}</div>
           <div class="metric-label">Average Time</div>
         </v-col>
       </v-row>
-      
+
       <v-divider class="my-3"></v-divider>
-      
+
       <v-row>
         <v-col cols="12">
           <div class="export-format-distribution">
@@ -106,17 +113,22 @@ const averageExportTime = computed(() => {
 
 // Format distribution data
 const exportsByFormat = computed(() => {
-  return analyticsStore.analytics.exportMetrics?.exportsByFormat ?? { csv: 0, json: 0 }
+  return (
+    analyticsStore.analytics.exportMetrics?.exportsByFormat ?? {
+      csv: 0,
+      json: 0
+    }
+  )
 })
 
 // Most popular export format
 const mostPopularFormat = computed(() => {
   const formats = analyticsStore.analytics.exportMetrics?.exportsByFormat
   if (!formats) return 'N/A'
-  
+
   const csv = formats.csv || 0
   const json = formats.json || 0
-  
+
   if (csv === 0 && json === 0) return 'N/A'
   return csv >= json ? 'CSV' : 'JSON'
 })

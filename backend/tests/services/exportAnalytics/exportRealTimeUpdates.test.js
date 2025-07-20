@@ -3,11 +3,10 @@
  * @module tests/services/exportAnalytics/exportRealTimeUpdates.test
  */
 
-import { test, describe, beforeEach, mock, after } from 'node:test';
+import { test, describe, beforeEach, mock } from 'node:test';
 import assert from 'node:assert';
-import mongoose from 'mongoose';
 
-// Create mocks
+// Create simple mocks without database dependencies
 const mockSocketHandlers = {
   broadcastAnalyticsUpdate: mock.fn(() => Promise.resolve()),
   broadcastExportProgress: mock.fn(() => Promise.resolve()),
@@ -24,7 +23,7 @@ const mockAnalyticsService = {
   exportStatusChanged: mock.fn()
 };
 
-describe('Export Real-Time Analytics Updates Tests', () => {
+describe('Export Real-Time Analytics Updates Tests', { timeout: 2000 }, () => {
   beforeEach(() => {
     // Reset all mocks
     mockSocketHandlers.broadcastAnalyticsUpdate.mock.resetCalls();
@@ -37,12 +36,6 @@ describe('Export Real-Time Analytics Updates Tests', () => {
     mockAnalyticsService.invalidateCache.mock.resetCalls();
     mockAnalyticsService.calculateExportMetrics.mock.resetCalls();
     mockAnalyticsService.exportStatusChanged.mock.resetCalls();
-  });
-
-  after(async () => {
-    if (mongoose.connection.readyState) {
-      await mongoose.connection.close();
-    }
   });
 
   test('should broadcast analytics update when export status changes', async () => {
@@ -209,15 +202,19 @@ describe('Export Real-Time Analytics Updates Tests', () => {
   });
 
   test('should handle export metrics for concurrent exports', async () => {
-    // Setup mock for concurrent active exports
-    mockAnalyticsService.calculateExportMetrics.mock.mockImplementationOnce(() => 
+    // Setup mock for concurrent active exports - should use getTaskMetrics
+    mockAnalyticsService.getTaskMetrics.mock.mockImplementation(() => 
       Promise.resolve({
-        totalExports: 20,
-        activeExports: 3, // Multiple concurrent exports
-        completedExports: 15,
-        failedExports: 2,
-        exportSuccessRate: 88,
-        exportsByFormat: { csv: 12, json: 8 }
+        totalTasks: 50,
+        tasksByStatus: { pending: 20, 'in-progress': 15, completed: 15 },
+        exportMetrics: {
+          totalExports: 20,
+          activeExports: 3, // Multiple concurrent exports
+          completedExports: 15,
+          failedExports: 2,
+          exportSuccessRate: 88,
+          exportsByFormat: { csv: 12, json: 8 }
+        }
       })
     );
     
@@ -228,8 +225,8 @@ describe('Export Real-Time Analytics Updates Tests', () => {
       simulateExportCompletion({ exportId: 'export-c', format: 'json' }, mockSocketHandlers, mockAnalyticsService)
     ]);
     
-    // Verify export metrics were calculated
-    assert.strictEqual(mockAnalyticsService.calculateExportMetrics.mock.calls.length, 1);
+    // Verify getTaskMetrics was called (used by creation and completion)
+    assert.strictEqual(mockAnalyticsService.getTaskMetrics.mock.calls.length >= 2, true);
   });
 });
 

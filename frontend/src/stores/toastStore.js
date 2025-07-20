@@ -33,7 +33,7 @@ export const useToastStore = defineStore('toast', () => {
     actions = null
   }) {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-    
+
     const toast = {
       id,
       message,
@@ -124,12 +124,12 @@ export const useToastStore = defineStore('toast', () => {
    * @param {string} id - Toast ID
    */
   function hideToast(id) {
-    const index = toasts.value.findIndex(toast => toast.id === id)
+    const index = toasts.value.findIndex((toast) => toast.id === id)
     if (index !== -1) {
       toasts.value[index].visible = false
       // Remove from array after animation
       setTimeout(() => {
-        const currentIndex = toasts.value.findIndex(toast => toast.id === id)
+        const currentIndex = toasts.value.findIndex((toast) => toast.id === id)
         if (currentIndex !== -1) {
           toasts.value.splice(currentIndex, 1)
         }
@@ -142,10 +142,10 @@ export const useToastStore = defineStore('toast', () => {
    * @function clearAllToasts
    */
   function clearAllToasts() {
-    toasts.value.forEach(toast => {
+    toasts.value.forEach((toast) => {
       toast.visible = false
     })
-    
+
     setTimeout(() => {
       toasts.value = []
     }, 300)
@@ -158,7 +158,7 @@ export const useToastStore = defineStore('toast', () => {
    * @param {Object} updates - Updates to apply
    */
   function updateToast(id, updates) {
-    const toast = toasts.value.find(t => t.id === id)
+    const toast = toasts.value.find((t) => t.id === id)
     if (toast) {
       Object.assign(toast, updates)
     }

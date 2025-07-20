@@ -86,6 +86,93 @@ export const useExportStore = defineStore('exports', () => {
   const hasActiveExports = computed(() => activeExports.value.length > 0)
 
   /**
+   * Converts date to ISO string format for API compatibility
+   * @param {string|Date} date - Date to convert
+   * @returns {string|null} ISO formatted date string or null
+   */
+  function formatDateForAPI(date) {
+    if (!date) return null
+    
+    try {
+      // If it's already a Date object
+      if (date instanceof Date) {
+        return date.toISOString()
+      }
+      
+      // If it's a string, try to parse it
+      if (typeof date === 'string') {
+        // If it's already an ISO string, return as is
+        if (date.includes('T') && date.includes('Z')) {
+          return date
+        }
+        
+        // If it's a date string like "2024-01-15", convert to ISO
+        const parsedDate = new Date(date)
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toISOString()
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.warn('Failed to format date for API:', date, error)
+      return null
+    }
+  }
+
+  /**
+   * Sanitizes and formats filters for API submission
+   * @param {Object} filters - Raw filters object
+   * @returns {Object} Sanitized filters object
+   */
+  function sanitizeFiltersForAPI(filters) {
+    if (!filters || typeof filters !== 'object') {
+      return {}
+    }
+
+    const sanitized = { ...filters }
+
+    // Format date fields to ISO strings
+    if (sanitized.dateFrom) {
+      const formattedDate = formatDateForAPI(sanitized.dateFrom)
+      if (formattedDate) {
+        sanitized.dateFrom = formattedDate
+      } else {
+        delete sanitized.dateFrom
+      }
+    }
+
+    if (sanitized.dateTo) {
+      const formattedDate = formatDateForAPI(sanitized.dateTo)
+      if (formattedDate) {
+        sanitized.dateTo = formattedDate
+      } else {
+        delete sanitized.dateTo
+      }
+    }
+
+    // Ensure status and priority are arrays if they exist
+    if (sanitized.status && !Array.isArray(sanitized.status)) {
+      sanitized.status = [sanitized.status]
+    }
+
+    if (sanitized.priority && !Array.isArray(sanitized.priority)) {
+      sanitized.priority = [sanitized.priority]
+    }
+
+    // Remove empty or null values
+    Object.keys(sanitized).forEach(key => {
+      const value = sanitized[key]
+      if (value === null || value === undefined || value === '' || 
+          (Array.isArray(value) && value.length === 0)) {
+        delete sanitized[key]
+      }
+    })
+
+    return sanitized
+  }
+
+  /**
    * Fetches exports from the server with optional parameters
    * @async
    * @function fetchExports
@@ -99,10 +186,12 @@ export const useExportStore = defineStore('exports', () => {
     try {
       const response = await apiClient.getExports(params)
       console.log('Fetched exports:', response.data)
-      
+
       // Handle paginated response
       if (response.data && response.data.exports) {
-        exports.value = Array.isArray(response.data.exports) ? response.data.exports : []
+        exports.value = Array.isArray(response.data.exports)
+          ? response.data.exports
+          : []
         // Store pagination info
         pagination.value = response.data.pagination || {}
       } else {
@@ -157,7 +246,15 @@ export const useExportStore = defineStore('exports', () => {
     const toastStore = useToastStore()
 
     try {
-      const response = await apiClient.createExport(exportConfig)
+      // Sanitize the export configuration, especially date formats
+      const sanitizedConfig = {
+        ...exportConfig,
+        filters: sanitizeFiltersForAPI(exportConfig.filters || {})
+      }
+
+      console.log('Creating export with sanitized config:', sanitizedConfig)
+
+      const response = await apiClient.createExport(sanitizedConfig)
 
       // Ensure exports.value is an array before using array methods
       if (!Array.isArray(exports.value)) {
@@ -168,21 +265,18 @@ export const useExportStore = defineStore('exports', () => {
       exports.value.unshift(response.data)
 
       // Show success toast
-      toastStore.showSuccess(
-        '🚀 Export Started!',
-        {
-          timeout: 3000,
-          actions: [
-            {
-              label: 'View Progress',
-              color: 'white',
-              handler: () => {
-                console.log('Navigate to export:', response.data._id)
-              }
+      toastStore.showSuccess('🚀 Export Started!', {
+        timeout: 3000,
+        actions: [
+          {
+            label: 'View Progress',
+            color: 'white',
+            handler: () => {
+              console.log('Navigate to export:', response.data._id)
             }
-          ]
-        }
-      )
+          }
+        ]
+      })
 
       return response.data
     } catch (err) {
@@ -232,21 +326,18 @@ export const useExportStore = defineStore('exports', () => {
     error.value = null
 
     // Show starting download toast
-    const downloadToastId = toastStore.showInfo(
-      '⬇️ Starting Download...',
-      {
-        timeout: 2000,
-        actions: [
-          {
-            label: 'Cancel',
-            color: 'white',
-            handler: () => {
-              console.log('Download cancelled by user')
-            }
+    const _downloadToastId = toastStore.showInfo('⬇️ Starting Download...', {
+      timeout: 2000,
+      actions: [
+        {
+          label: 'Cancel',
+          color: 'white',
+          handler: () => {
+            console.log('Download cancelled by user')
           }
-        ]
-      }
-    )
+        }
+      ]
+    })
 
     console.log('Starting download for export:', id)
 
@@ -342,26 +433,23 @@ export const useExportStore = defineStore('exports', () => {
 
       // Show success toast
       const fileSize = chunks.reduce((total, chunk) => total + chunk.length, 0)
-      const fileSizeFormatted =
+      const _fileSizeFormatted =
         fileSize > 1024 * 1024
           ? `${(fileSize / (1024 * 1024)).toFixed(1)} MB`
           : `${(fileSize / 1024).toFixed(1)} KB`
 
-      toastStore.showSuccess(
-        '✅ Download Complete!',
-        {
-          timeout: 3000,
-          actions: [
-            {
-              label: 'Download Again',
-              color: 'white',
-              handler: () => {
-                downloadExport(id, filename)
-              }
+      toastStore.showSuccess('✅ Download Complete!', {
+        timeout: 3000,
+        actions: [
+          {
+            label: 'Download Again',
+            color: 'white',
+            handler: () => {
+              downloadExport(id, filename)
             }
-          ]
-        }
-      )
+          }
+        ]
+      })
     } catch (err) {
       error.value = err.message
       downloadProgress.value[id] = {
@@ -414,7 +502,8 @@ export const useExportStore = defineStore('exports', () => {
       // Update export status locally
       const exportIndex = exports.value.findIndex((exp) => exp._id === id)
       if (exportIndex !== -1) {
-        const exportName = exports.value[exportIndex].filename || `export-${id}`
+        const _exportName =
+          exports.value[exportIndex].filename || `export-${id}`
         exports.value[exportIndex].status = 'cancelled'
 
         // Show cancellation toast
@@ -474,7 +563,8 @@ export const useExportStore = defineStore('exports', () => {
       // Update export in the list
       const exportIndex = exports.value.findIndex((exp) => exp._id === id)
       if (exportIndex !== -1) {
-        const exportName = exports.value[exportIndex].filename || `export-${id}`
+        const _exportName =
+          exports.value[exportIndex].filename || `export-${id}`
         exports.value[exportIndex] = response.data
 
         // Show retry success toast
@@ -536,7 +626,8 @@ export const useExportStore = defineStore('exports', () => {
       // Remove export from the list
       const exportIndex = exports.value.findIndex((exp) => exp._id === id)
       if (exportIndex !== -1) {
-        const exportName = exports.value[exportIndex].filename || `export-${id}`
+        const _exportName =
+          exports.value[exportIndex].filename || `export-${id}`
         exports.value.splice(exportIndex, 1)
 
         // Clear download progress
@@ -616,7 +707,7 @@ export const useExportStore = defineStore('exports', () => {
 
     const exportIndex = exports.value.findIndex((exp) => exp._id === exportId)
     if (exportIndex !== -1) {
-      const exportName =
+      const _exportName =
         exports.value[exportIndex].filename || `export-${exportId}`
       const previousStatus = exports.value[exportIndex].status
 
@@ -630,7 +721,7 @@ export const useExportStore = defineStore('exports', () => {
 
       // Show status-specific toast notifications (only if status actually changed)
       if (previousStatus !== status) {
-        showStatusToast(toastStore, status, exportName, exportId, metadata)
+        showStatusToast(toastStore, status, _exportName, exportId, metadata)
       }
     }
   }
@@ -652,84 +743,78 @@ export const useExportStore = defineStore('exports', () => {
     metadata = {}
   ) {
     switch (status) {
-      case 'pending':
-        toastStore.showInfo(
-          '⏳ Export Queued',
-          {
-            timeout: 3000,
-            actions: [
-              {
-                label: 'Cancel',
-                color: 'white',
-                handler: () => {
-                  cancelExport(exportId).catch((error) => {
-                    console.error('Failed to cancel export:', error)
-                  })
-                }
+      case 'pending': {
+        toastStore.showInfo('⏳ Export Queued', {
+          timeout: 3000,
+          actions: [
+            {
+              label: 'Cancel',
+              color: 'white',
+              handler: () => {
+                cancelExport(exportId).catch((_error) => {
+                  console.error('Failed to cancel export:', _error)
+                })
               }
-            ]
-          }
-        )
+            }
+          ]
+        })
         break
+      }
 
-      case 'processing':
-        const estimatedTime = metadata.estimatedTime || 'Unknown'
-        const recordCount = metadata.recordCount || 'Unknown'
+      case 'processing': {
+        const _estimatedTime = metadata.estimatedTime || 'Unknown'
+        const _recordCount = metadata.recordCount || 'Unknown'
 
-        toastStore.showInfo(
-          '⚙️ Export Processing',
-          {
-            timeout: 3000,
-            actions: [
-              {
-                label: 'View Progress',
-                color: 'white',
-                handler: () => {
-                  console.log('View processing progress for:', exportId)
-                }
-              },
-              {
-                label: 'Cancel',
-                color: 'white',
-                handler: () => {
-                  cancelExport(exportId).catch((error) => {
-                    console.error('Failed to cancel export:', error)
-                  })
-                }
+        toastStore.showInfo('⚙️ Export Processing', {
+          timeout: 3000,
+          actions: [
+            {
+              label: 'View Progress',
+              color: 'white',
+              handler: () => {
+                console.log('View processing progress for:', exportId)
               }
-            ]
-          }
-        )
+            },
+            {
+              label: 'Cancel',
+              color: 'white',
+              handler: () => {
+                cancelExport(exportId).catch((_error) => {
+                  console.error('Failed to cancel export:', _error)
+                })
+              }
+            }
+          ]
+        })
         break
+      }
 
-      case 'completed':
+      case 'completed': {
         const fileSize = metadata.fileSize
-        const fileSizeFormatted = fileSize
+        const _fileSizeFormatted = fileSize
           ? fileSize > 1024 * 1024
             ? `${(fileSize / (1024 * 1024)).toFixed(1)} MB`
             : `${(fileSize / 1024).toFixed(1)} KB`
           : 'Unknown size'
 
-        toastStore.showSuccess(
-          '🎉 Export Complete!',
-          {
-            timeout: 4000,
-            actions: [
-              {
-                label: 'Download',
-                color: 'white',
-                handler: () => {
-                  downloadExport(exportId, exportName).catch((error) => {
-                    console.error('Download failed:', error)
-                  })
-                }
+        toastStore.showSuccess('🎉 Export Complete!', {
+          timeout: 4000,
+          actions: [
+            {
+              label: 'Download',
+              color: 'white',
+              handler: () => {
+                downloadExport(exportId, exportName).catch((_error) => {
+                  console.error('Download failed:', _error)
+                })
               }
-            ]
-          }
-        )
+            }
+          ]
+        })
         break
+      }
 
-      case 'failed':
+      case 'failed': {
         const errorMessage = metadata.error || 'Unknown error occurred'
         const canRetry = metadata.canRetry !== false
 
@@ -753,7 +838,7 @@ export const useExportStore = defineStore('exports', () => {
                   toastStore.showInfo('🔄 Retry Started')
                 })
                 .catch((error) => {
-                  toastStore.showError('❌ Retry Failed')
+                  toastStore.showError('❌ Retry Failed', error?.message)
                 })
             }
           })
@@ -771,8 +856,9 @@ export const useExportStore = defineStore('exports', () => {
           actions
         })
         break
+      }
 
-      case 'cancelled':
+      case 'cancelled': {
         toastStore.showWarning('⚠️ Export Cancelled', {
           timeout: 3000,
           actions: [
@@ -786,25 +872,24 @@ export const useExportStore = defineStore('exports', () => {
           ]
         })
         break
+      }
 
-      default:
+      default: {
         // For any unknown status, show a generic info toast
-        toastStore.showInfo(
-          `📊 Status: ${status}`,
-          {
-            timeout: 3000,
-            actions: [
-              {
-                label: 'View Details',
-                color: 'white',
-                handler: () => {
-                  console.log('View export details:', exportId)
-                }
+        toastStore.showInfo(`📊 Status: ${status}`, {
+          timeout: 3000,
+          actions: [
+            {
+              label: 'View Details',
+              color: 'white',
+              handler: () => {
+                console.log('View export details:', exportId)
               }
-            ]
-          }
-        )
+            }
+          ]
+        })
         break
+      }
     }
   }
 
@@ -837,36 +922,33 @@ export const useExportStore = defineStore('exports', () => {
       console.log('Export completed:', updatedExport)
 
       // Show completion toast
-      const exportName = updatedExport.filename || `export-${exportId}`
+      const _exportName = updatedExport.filename || `export-${exportId}`
       const fileSize = updatedExport.fileSize
-      const fileSizeFormatted = fileSize
+      const _fileSizeFormatted = fileSize
         ? fileSize > 1024 * 1024
           ? `${(fileSize / (1024 * 1024)).toFixed(1)} MB`
           : `${(fileSize / 1024).toFixed(1)} KB`
         : 'Unknown size'
 
-      toastStore.showSuccess(
-        `🎉 Export Complete! (${fileSizeFormatted})`,
-        {
-          timeout: 6000,
-          actions: [
-            {
-              label: 'Download Now',
-              color: 'white',
-              handler: () => {
-                downloadExport(exportId, updatedExport.filename)
-              }
-            },
-            {
-              label: 'View Details',
-              color: 'white',
-              handler: () => {
-                console.log('View export details:', exportId)
-              }
+      toastStore.showSuccess(`🎉 Export Complete! (${_fileSizeFormatted})`, {
+        timeout: 6000,
+        actions: [
+          {
+            label: 'Download Now',
+            color: 'white',
+            handler: () => {
+              downloadExport(exportId, updatedExport.filename)
             }
-          ]
-        }
-      )
+          },
+          {
+            label: 'View Details',
+            color: 'white',
+            handler: () => {
+              console.log('View export details:', exportId)
+            }
+          }
+        ]
+      })
 
       // Auto-download the completed export if it has a filename
       if (updatedExport._id && updatedExport.downloadUrl) {
@@ -884,27 +966,24 @@ export const useExportStore = defineStore('exports', () => {
             )
           })
           .catch((error) => {
-            console.error('Auto-download failed for export:', exportId, error)
+            console.error('Auto-download failed for export:', exportId, error?.message)
             // Remove auto-hide timer on download error to keep progress visible
             if (exports.value[exportIndex]) {
               delete exports.value[exportIndex]._autoHideAfter
             }
 
             // Show error toast for auto-download failure
-            toastStore.showWarning(
-              '⚠️ Auto-download Failed',
-              {
-                actions: [
-                  {
-                    label: 'Download Manually',
-                    color: 'white',
-                    handler: () => {
-                      downloadExport(exportId, updatedExport.filename)
-                    }
+            toastStore.showWarning('⚠️ Auto-download Failed', {
+              actions: [
+                {
+                  label: 'Download Manually',
+                  color: 'white',
+                  handler: () => {
+                    downloadExport(exportId, updatedExport.filename)
                   }
-                ]
-              }
-            )
+                }
+              ]
+            })
           })
       }
     }
@@ -923,7 +1002,7 @@ export const useExportStore = defineStore('exports', () => {
 
     const exportIndex = exports.value.findIndex((exp) => exp._id === exportId)
     if (exportIndex !== -1) {
-      const exportName =
+      const _exportName =
         exports.value[exportIndex].filename || `export-${exportId}`
 
       exports.value[exportIndex] = {
@@ -947,7 +1026,7 @@ export const useExportStore = defineStore('exports', () => {
                   toastStore.showInfo('🔄 Retry Started')
                 })
                 .catch((error) => {
-                  toastStore.showError('❌ Retry Failed')
+                  toastStore.showError('❌ Retry Failed',error?.message)
                 })
             }
           },

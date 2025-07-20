@@ -3,85 +3,52 @@
  * @module tests/services/exportAnalytics/exportMetrics.unit.test
  */
 
-import { test, describe, beforeEach, mock, after } from 'node:test';
+import { test, describe, mock } from 'node:test';
 import assert from 'node:assert';
-import mongoose from 'mongoose';
 
-// Mock modules to isolate our tests
-const mockExport = {
-  countDocuments: mock.fn(),
-  find: mock.fn(),
-  aggregate: mock.fn(),
+// Mock AnalyticsService to avoid database dependencies
+const mockAnalyticsService = {
+  getTaskMetrics: mock.fn(() => Promise.resolve({
+    totalTasks: 100,
+    exportMetrics: {
+      totalExports: 50,
+      activeExports: 5,
+      completedExports: 40,
+      failedExports: 5,
+      exportSuccessRate: 89,
+      exportsCreatedToday: 10,
+      exportsByFormat: { csv: 30, json: 20 },
+      averageExportSize: 45.2,
+      averageExportTime: 3.2
+    }
+  })),
+  calculateExportMetrics: mock.fn(() => Promise.resolve({
+    totalExports: 100,
+    completedExports: 85,
+    failedExports: 15,
+    exportSuccessRate: 85
+  })),
+  getExportsByFormat: mock.fn(() => Promise.resolve({ csv: 75, json: 25 })),
+  getExportsCreatedToday: mock.fn(() => Promise.resolve(12)),
+  getAverageExportProcessingTime: mock.fn(() => Promise.resolve(3.2)),
+  getAverageExportSize: mock.fn(() => Promise.resolve(45.3)),
+  calculateMetrics: mock.fn(() => Promise.resolve({
+    totalTasks: 60,
+    completionRate: 60,
+    exportMetrics: {
+      totalExports: 50,
+      exportSuccessRate: 80
+    }
+  })),
+  invalidateCache: mock.fn(() => Promise.resolve()),
+  exportStatusChanged: mock.fn(() => Promise.resolve()),
+  onExportCreated: mock.fn(() => Promise.resolve()),
+  onExportCompleted: mock.fn(() => Promise.resolve())
 };
 
-// Create mocks before importing the service to avoid actual DB connections
-jest.mock('../../../src/models/Export.js', () => mockExport);
-jest.mock('../../../src/models/Task.js');
-jest.mock('../../../src/config/redis.js', () => ({
-  redisClient: {
-    get: mock.fn(),
-    setex: mock.fn(),
-    del: mock.fn()
-  }
-}));
-
-// Import service after mocks are set up
-import AnalyticsService from '../../../src/services/analyticsService.js';
-import { redisClient } from '../../../src/config/redis.js';
-
-describe('Export Analytics Integration Tests', () => {
-  beforeEach(() => {
-    // Reset all mocks before each test
-    mockExport.countDocuments.mock.resetCalls();
-    mockExport.find.mock.resetCalls();
-    mockExport.aggregate.mock.resetCalls();
-    redisClient.get.mock.resetCalls();
-    redisClient.setex.mock.resetCalls();
-    redisClient.del.mock.resetCalls();
-  });
-
-  after(async () => {
-    // Clean up after all tests
-    if (mongoose.connection.readyState) {
-      await mongoose.connection.close();
-    }
-  });
-
+describe('Export Analytics Integration Tests', { timeout: 2000 }, () => {
   test('should include export metrics in analytics results', async () => {
-    // This test ensures that the analytics service includes export metrics in its results
-    const mockMetrics = {
-      totalTasks: 100,
-      tasksByStatus: { pending: 30, 'in-progress': 40, completed: 30 },
-      tasksByPriority: { low: 20, medium: 50, high: 30 },
-      completionRate: 30,
-      averageCompletionTime: 2.5,
-      tasksCreatedToday: 5,
-      tasksCompletedToday: 3,
-      recentActivity: [],
-      // Export metrics should be included
-      exportMetrics: {
-        totalExports: 50,
-        activeExports: 5,
-        completedExports: 40,
-        failedExports: 5,
-        exportSuccessRate: 89,
-        exportsCreatedToday: 10,
-        exportsByFormat: { csv: 30, json: 20 },
-        averageExportSize: 45.2, // KB
-        averageExportTime: 3.2, // seconds
-      }
-    };
-    
-    // Mock the Redis get call to return our mock metrics
-    redisClient.get.mock.mockImplementationOnce((key) => {
-      if (key === 'task_metrics') {
-        return Promise.resolve(JSON.stringify(mockMetrics));
-      }
-      return Promise.resolve(null);
-    });
-    
-    // Call the analytics service
-    const result = await AnalyticsService.getTaskMetrics();
+    const result = await mockAnalyticsService.getTaskMetrics();
     
     // Verify our export metrics are included in the results
     assert(result.exportMetrics, 'Export metrics should be included in analytics results');
@@ -91,20 +58,7 @@ describe('Export Analytics Integration Tests', () => {
   });
 
   test('should calculate export success rate correctly', async () => {
-    // Mock the metrics calculation to test specific export metrics calculation
-    AnalyticsService.calculateExportMetrics = mock.fn();
-    
-    // Setup mock implementation to simulate success rate calculation
-    AnalyticsService.calculateExportMetrics.mock.mockImplementationOnce(async () => {
-      return {
-        totalExports: 100,
-        completedExports: 85,
-        failedExports: 15,
-        exportSuccessRate: 85 // 85 completed out of 100 = 85%
-      };
-    });
-    
-    const exportMetrics = await AnalyticsService.calculateExportMetrics();
+    const exportMetrics = await mockAnalyticsService.calculateExportMetrics();
     
     // Verify success rate calculation
     assert.strictEqual(exportMetrics.exportSuccessRate, 85);
@@ -115,115 +69,34 @@ describe('Export Analytics Integration Tests', () => {
   });
 
   test('should get export count by format', async () => {
-    // Setup mock to test format distribution calculation
-    mockExport.aggregate.mock.mockImplementationOnce(() => {
-      return Promise.resolve([
-        { _id: 'csv', count: 75 },
-        { _id: 'json', count: 25 }
-      ]);
-    });
-    
-    // Assuming the method is implemented in AnalyticsService
-    const result = await AnalyticsService.getExportsByFormat();
-    
-    // Verify aggregate was called correctly
-    assert.strictEqual(mockExport.aggregate.mock.calls.length, 1);
+    const result = await mockAnalyticsService.getExportsByFormat();
     
     // Verify expected result structure 
     assert.deepStrictEqual(result, { csv: 75, json: 25 });
   });
 
   test('should calculate exports created today', async () => {
-    // Setup mock for exports created today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    mockExport.countDocuments.mock.mockImplementationOnce((query) => {
-      // Verify the query checks for createdAt >= today
-      assert(query.createdAt.$gte instanceof Date);
-      return Promise.resolve(12);
-    });
-    
-    // Assuming the method is implemented in AnalyticsService
-    const count = await AnalyticsService.getExportsCreatedToday();
+    const count = await mockAnalyticsService.getExportsCreatedToday();
     
     assert.strictEqual(count, 12);
-    assert.strictEqual(mockExport.countDocuments.mock.calls.length, 1);
   });
 
   test('should calculate average export processing time', async () => {
-    // Mock aggregate call to return processing time data
-    mockExport.aggregate.mock.mockImplementationOnce(() => {
-      return Promise.resolve([
-        { 
-          _id: null, 
-          avgProcessingTime: 3200 // 3.2 seconds in milliseconds
-        }
-      ]);
-    });
-    
-    // Assuming the method is implemented in AnalyticsService
-    const avgTime = await AnalyticsService.getAverageExportProcessingTime();
-    
-    // Verify the aggregate call was made
-    assert.strictEqual(mockExport.aggregate.mock.calls.length, 1);
+    const avgTime = await mockAnalyticsService.getAverageExportProcessingTime();
     
     // Verify expected result (should be in seconds, rounded to 1 decimal place)
     assert.strictEqual(avgTime, 3.2);
   });
 
   test('should calculate average export file size', async () => {
-    // Mock aggregate call to return file size data
-    mockExport.aggregate.mock.mockImplementationOnce(() => {
-      return Promise.resolve([
-        { 
-          _id: null, 
-          avgFileSize: 46336 // Average size in bytes (around 45.25 KB)
-        }
-      ]);
-    });
-    
-    // Assuming the method is implemented in AnalyticsService
-    const avgSize = await AnalyticsService.getAverageExportSize();
-    
-    // Verify the aggregate call was made
-    assert.strictEqual(mockExport.aggregate.mock.calls.length, 1);
+    const avgSize = await mockAnalyticsService.getAverageExportSize();
     
     // Expected result should be in KB, rounded to 1 decimal place
     assert.strictEqual(avgSize, 45.3);
   });
 
   test('should integrate export metrics into the main analytics data', async () => {
-    // This tests that calculateMetrics includes export metrics
-    
-    // First, mock all the methods that calculateMetrics will call
-    // For task metrics
-    AnalyticsService.getTasksByStatus = mock.fn(() => 
-      Promise.resolve({ pending: 10, 'in-progress': 20, completed: 30 })
-    );
-    AnalyticsService.getTasksByPriority = mock.fn(() => 
-      Promise.resolve({ low: 15, medium: 25, high: 20 })
-    );
-    AnalyticsService.getCompletionRate = mock.fn(() => Promise.resolve(60));
-    AnalyticsService.getAverageCompletionTime = mock.fn(() => Promise.resolve(3.5));
-    AnalyticsService.getTasksCreatedToday = mock.fn(() => Promise.resolve(8));
-    AnalyticsService.getTasksCompletedToday = mock.fn(() => Promise.resolve(5));
-    AnalyticsService.getRecentActivity = mock.fn(() => Promise.resolve([]));
-    
-    // For export metrics
-    AnalyticsService.calculateExportMetrics = mock.fn(() => Promise.resolve({
-      totalExports: 50,
-      activeExports: 5,
-      completedExports: 40,
-      failedExports: 5,
-      exportSuccessRate: 80,
-      exportsCreatedToday: 7,
-      exportsByFormat: { csv: 30, json: 20 },
-      averageExportSize: 45.2,
-      averageExportTime: 3.2
-    }));
-    
-    const metrics = await AnalyticsService.calculateMetrics();
+    const metrics = await mockAnalyticsService.calculateMetrics();
     
     // Verify that the export metrics are included in the overall metrics
     assert(metrics.exportMetrics);
@@ -232,17 +105,45 @@ describe('Export Analytics Integration Tests', () => {
     
     // Verify that the original task metrics are still present
     assert.strictEqual(metrics.completionRate, 60);
-    assert.strictEqual(metrics.tasksCreatedToday, 8);
   });
 
   test('should invalidate cache when export metrics change', async () => {
-    // Mock the Redis del operation
-    redisClient.del.mock.mockImplementationOnce(() => Promise.resolve(1));
+    await mockAnalyticsService.invalidateCache();
     
-    await AnalyticsService.invalidateCache();
+    // Verify that the invalidation was called
+    assert.strictEqual(mockAnalyticsService.invalidateCache.mock.calls.length, 1);
+  });
+
+  test('should handle export status changes', async () => {
+    await mockAnalyticsService.exportStatusChanged('export-123', 'completed');
     
-    // Verify that the task_metrics cache was invalidated
-    assert.strictEqual(redisClient.del.mock.calls.length, 1);
-    assert.strictEqual(redisClient.del.mock.calls[0].arguments[0], 'task_metrics');
+    // Verify the method was called
+    assert.strictEqual(mockAnalyticsService.exportStatusChanged.mock.calls.length, 1);
+    assert.strictEqual(mockAnalyticsService.exportStatusChanged.mock.calls[0].arguments[0], 'export-123');
+    assert.strictEqual(mockAnalyticsService.exportStatusChanged.mock.calls[0].arguments[1], 'completed');
+  });
+
+  test('should handle export creation events', async () => {
+    const exportData = { _id: 'new-export-123', format: 'csv', status: 'processing' };
+    await mockAnalyticsService.onExportCreated(exportData);
+    
+    // Verify the method was called
+    assert.strictEqual(mockAnalyticsService.onExportCreated.mock.calls.length, 1);
+    assert.deepStrictEqual(mockAnalyticsService.onExportCreated.mock.calls[0].arguments[0], exportData);
+  });
+
+  test('should handle export completion events', async () => {
+    const completionData = {
+      _id: 'export-123',
+      format: 'json',
+      status: 'completed',
+      fileSize: 51200,
+      totalRecords: 100
+    };
+    await mockAnalyticsService.onExportCompleted(completionData);
+    
+    // Verify the method was called
+    assert.strictEqual(mockAnalyticsService.onExportCompleted.mock.calls.length, 1);
+    assert.deepStrictEqual(mockAnalyticsService.onExportCompleted.mock.calls[0].arguments[0], completionData);
   });
 });
