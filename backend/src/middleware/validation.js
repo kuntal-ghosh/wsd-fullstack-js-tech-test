@@ -251,8 +251,21 @@ export const validatePagination = (req, res, next) => {
       'number.min': 'limit must be greater than or equal to 1',
       'number.max': 'limit must be less than or equal to 100'
     }),
-    sortBy: Joi.string().valid('createdAt', 'status', 'format', 'fileSize').default('createdAt'),
-    sortOrder: Joi.string().valid('asc', 'desc').default('desc')
+    sortBy: Joi.string().valid('createdAt', 'status', 'format', 'fileSize', 'totalRecords').default('createdAt'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+    // Filter parameters
+    status: Joi.string().valid('processing', 'completed', 'failed').messages({
+      'any.only': 'status must be processing, completed, or failed'
+    }),
+    format: Joi.string().valid('csv', 'json').messages({
+      'any.only': 'format must be csv or json'
+    }),
+    dateFrom: Joi.string().isoDate().messages({
+      'string.isoDate': 'dateFrom must be a valid ISO date (YYYY-MM-DD)'
+    }),
+    dateTo: Joi.string().isoDate().messages({
+      'string.isoDate': 'dateTo must be a valid ISO date (YYYY-MM-DD)'
+    })
   });
 
   const { error, value } = schema.validate(req.query, { 

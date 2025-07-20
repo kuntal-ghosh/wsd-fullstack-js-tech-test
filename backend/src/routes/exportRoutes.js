@@ -211,13 +211,18 @@ router.get('/exports/:id/download', validateExportId, async (req, res, next) => 
 });
 
 /**
- * GET /api/exports - Get export history with pagination
+ * GET /api/exports - Get export history with pagination and filtering
  * @name GetExportHistory
  * @function
  * @param {Object} req.query - Query parameters
  * @param {number} [req.query.page=1] - Page number
  * @param {number} [req.query.limit=10] - Items per page
- * @param {string} [req.query.status] - Filter by status
+ * @param {string} [req.query.sortBy='createdAt'] - Field to sort by
+ * @param {string} [req.query.sortOrder='desc'] - Sort order ('asc' or 'desc')
+ * @param {string} [req.query.status] - Filter by status ('processing', 'completed', 'failed')
+ * @param {string} [req.query.format] - Filter by format ('csv', 'json')
+ * @param {string} [req.query.dateFrom] - Filter exports from this date (YYYY-MM-DD)
+ * @param {string} [req.query.dateTo] - Filter exports until this date (YYYY-MM-DD)
  * @returns {Object} Paginated export history
  */
 router.get('/exports', validatePagination, async (req, res, next) => {
@@ -227,14 +232,39 @@ router.get('/exports', validatePagination, async (req, res, next) => {
       limit = 10, 
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      status 
+      status,
+      format,
+      dateFrom,
+      dateTo
     } = req.pagination || req.query;
 
     // Build query
     const query = {};
+    
+    // Status filter
     if (status && ['processing', 'completed', 'failed'].includes(status)) {
       query.status = status;
     }
+    
+    // Format filter
+    if (format && ['csv', 'json'].includes(format)) {
+      query.format = format;
+    }
+    
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        // Add one day to include the entire dateTo day
+        const endDate = new Date(dateTo);
+        endDate.setDate(endDate.getDate() + 1);
+        query.createdAt.$lt = endDate;
+      }
+    }
+
 
     // Get exports with pagination
     const exports = await Export.find(query)

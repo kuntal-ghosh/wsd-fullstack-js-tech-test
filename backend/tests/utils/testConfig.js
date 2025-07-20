@@ -33,7 +33,7 @@ export const loadTestConfig = () => {
  */
 export const getTestExportConfig = () => {
   return {
-    exportDir: process.env.EXPORT_DIR || './test-exports',
+    exportDir: process.env.EXPORT_DIR || './data',
     fileTTL: parseInt(process.env.EXPORT_FILE_TTL) || 86400, // 24 hours
     maxFileSize: parseInt(process.env.EXPORT_MAX_FILE_SIZE) || 10485760, // 10MB
     cacheTTL: parseInt(process.env.EXPORT_CACHE_TTL) || 3600, // 1 hour

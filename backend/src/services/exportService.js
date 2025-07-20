@@ -259,7 +259,7 @@ class ExportService {
    */
   static async saveExportFile(data, format, exportId) {
     try {
-      const exportDir = process.env.EXPORT_DIR || './test-exports';
+      const exportDir = process.env.EXPORT_DIR || './data';
       const fileName = `export_${exportId}_${Date.now()}.${format}`;
       const filePath = path.join(exportDir, fileName);
 

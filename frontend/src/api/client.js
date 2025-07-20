@@ -177,12 +177,13 @@ class ApiClient {
   }
 
   /**
-   * Retrieves all exports
+   * Retrieves exports with optional parameters
    * @async
+   * @param {Object} [params={}] - Query parameters for pagination and filtering
    * @returns {Promise<Object>} Exports list response
    */
-  async getExports() {
-    return this.get('/exports')
+  async getExports(params = {}) {
+    return this.get('/exports', params)
   }
 
   /**

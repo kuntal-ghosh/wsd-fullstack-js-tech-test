@@ -33,70 +33,58 @@
       </v-btn>
     </div>
 
-    <v-card class="mb-4">
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.status"
-              :items="statusOptions"
-              label="Status"
-              clearable
-              @update:model-value="updateFilters"
-            ></v-select>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.priority"
-              :items="priorityOptions"
-              label="Priority"
-              clearable
-              @update:model-value="updateFilters"
-            ></v-select>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.sortBy"
-              :items="sortOptions"
-              label="Sort by"
-              @update:model-value="updateFilters"
-            ></v-select>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.sortOrder"
-              :items="orderOptions"
-              label="Order"
-              @update:model-value="updateFilters"
-            ></v-select>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <!-- Clean Search Bar -->
+    <div class="search-container mb-4">
+      <div class="search-wrapper">
+        <div class="search-input-container">
+          <v-icon class="search-icon" color="primary">mdi-magnify</v-icon>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search tasks by title or description..."
+            class="search-input"
+            @input="onSearchInput"
+            data-test="global-search-input"
+          />
+          <div class="search-actions">
+            <v-btn
+              v-if="searchQuery"
+              icon
+              size="small"
+              variant="text"
+              @click="clearSearch"
+              class="clear-btn"
+            >
+              <v-icon size="18">mdi-close</v-icon>
+            </v-btn>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- Advanced Filters Section -->
-    <v-expansion-panels class="mb-4" data-test="advanced-filter-panel-container">
+    <!-- Filters Section -->
+    <v-expansion-panels v-model="filterExpanded" class="mb-4" data-test="filter-panel-container">
       <v-expansion-panel>
         <v-expansion-panel-title>
           <v-icon class="mr-2">mdi-filter-variant</v-icon>
           Advanced Filters
           <v-chip
-            v-if="advancedFilterCount > 0"
+            v-if="filterCount > 0"
             color="primary"
             size="small"
             class="ml-2"
-            data-test="advanced-filter-count"
+            data-test="filter-count"
           >
-            {{ advancedFilterCount }}
+            {{ filterCount }}
           </v-chip>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <advanced-filter-panel
-            v-model="advancedFilters"
-            @update:model-value="updateAdvancedFilters"
+            v-model="filters"
+            @update:model-value="updateFilters"
             @export="onAdvancedExport"
             :export-loading="exportStore.loading"
-            data-test="advanced-filter-panel"
+            data-test="filter-panel"
           />
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -110,9 +98,52 @@
       <v-alert type="error">{{ taskStore.error }}</v-alert>
     </div>
 
-    <div v-else-if="taskStore.tasks.length === 0" class="text-center py-8">
-      <v-icon size="64" color="grey-lighten-1">mdi-format-list-checks</v-icon>
-      <p class="text-grey mt-2">No tasks found</p>
+    <div v-else-if="taskStore.tasks.length === 0" class="empty-state-container d-flex flex-column align-center justify-center pa-8" data-test="empty-state">
+      <!-- Animated background illustration -->
+      <div class="empty-state-illustration mb-6">
+        <div class="floating-documents">
+          <div class="document doc-1">
+            <v-icon size="40" color="primary">mdi-format-list-bulleted</v-icon>
+          </div>
+          <div class="document doc-2">
+            <v-icon size="36" color="secondary">mdi-check-circle</v-icon>
+          </div>
+          <div class="document doc-3">
+            <v-icon size="32" color="success">mdi-clipboard-check</v-icon>
+          </div>
+        </div>
+        
+        <!-- Central empty folder icon -->
+        <div class="empty-folder">
+          <v-icon size="80" color="grey-lighten-2">mdi-format-list-checks</v-icon>
+          <div class="folder-shine"></div>
+        </div>
+      </div>
+      
+      <!-- Text content -->
+      <div class="text-center">
+        <h3 class="text-h5 mb-3 text-grey-darken-2">
+          {{ hasActiveFilters ? 'No tasks match your filters' : 'No tasks yet' }}
+        </h3>
+        <p class="text-body-1 text-grey mb-4" style="max-width: 400px;">
+          {{ hasActiveFilters 
+            ? 'Try adjusting your filters or create a new task to get started.' 
+            : 'Start by creating your first task to organize your work efficiently.' 
+          }}
+        </p>
+        
+        <!-- Action button -->
+        <v-btn
+          color="primary"
+          size="large"
+          prepend-icon="mdi-plus"
+          variant="elevated"
+          @click="showCreateDialog = true"
+          class="mt-2"
+        >
+          {{ hasActiveFilters ? 'Create New Task' : 'Create Your First Task' }}
+        </v-btn>
+      </div>
     </div>
 
     <div v-else>
@@ -219,6 +250,7 @@ import { useExportStore } from '../stores/exportStore.js'
 import TaskFormDialog from './TaskFormDialog.vue'
 import AdvancedFilterPanel from './AdvancedFilterPanel.vue'
 import ExportDialog from './ExportDialog.vue'
+import { debounce } from 'lodash-es'
 
 const taskStore = useTaskStore()
 const exportStore = useExportStore()
@@ -228,141 +260,83 @@ const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showExportDialog = ref(false)
 const selectedTask = ref(null)
+const filterExpanded = ref([])
+const searchQuery = ref('')
+
+// Debounce search to prevent excessive API calls
+const onSearchInput = debounce(() => {
+  filters.search = searchQuery.value
+  updateFilters()
+}, 300)
+
+// Clear search field
+function clearSearch() {
+  searchQuery.value = ''
+  filters.search = ''
+  updateFilters()
+}
+
+// Expand the filter accordion when clicking on the filter icon
+function expandFilters() {
+  filterExpanded.value = [0]
+}
 
 const filters = reactive({
-  status: '',
-  priority: '',
-  sortBy: 'createdAt',
-  sortOrder: 'desc'
-})
-
-const advancedFilters = reactive({
   search: '',
   status: [],
   priority: [],
-  assignee: [],
   dateFrom: '',
   dateTo: '',
-  tags: []
+  sortBy: '',
+  sortOrder: ''
 })
 
 // Combined filters for export
 const combinedFilters = computed(() => {
-  return {
-    ...filters,
-    // Convert single status to array if present
-    status: filters.status ? [filters.status] : advancedFilters.status,
-    // Convert single priority to array if present
-    priority: filters.priority ? [filters.priority] : advancedFilters.priority,
-    // Add advanced filters
-    search: advancedFilters.search,
-    assignee: advancedFilters.assignee,
-    dateFrom: advancedFilters.dateFrom,
-    dateTo: advancedFilters.dateTo,
-    tags: advancedFilters.tags
-  }
+  return { ...filters }
 })
 
-// Count active advanced filters
-const advancedFilterCount = computed(() => {
+// Count active filters
+const filterCount = computed(() => {
   let count = 0
-  if (advancedFilters.search) count++
-  if (advancedFilters.status?.length > 0) count++
-  if (advancedFilters.priority?.length > 0) count++
-  if (advancedFilters.assignee?.length > 0) count++
-  if (advancedFilters.dateFrom || advancedFilters.dateTo) count++
-  if (advancedFilters.tags?.length > 0) count++
+  if (filters.search) count++
+  if (filters.status?.length > 0) count++
+  if (filters.priority?.length > 0) count++
+  if (filters.dateFrom || filters.dateTo) count++
+  if (filters.sortBy) count++
+  if (filters.sortOrder) count++ 
   return count
 })
 
-// Get recent exports (completed or failed in the last 24 hours)
-const recentExports = computed(() => {
-  const oneDayAgo = new Date()
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1)
-  
-  return exportStore.exports
-    .filter(exp => 
-      (exp.status === 'completed' || exp.status === 'failed') && 
-      new Date(exp.updatedAt) > oneDayAgo
-    )
-    .slice(0, 3) // Show only last 3
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+  return !!(
+    filters.search ||
+    filters.status?.length > 0 ||
+    filters.priority?.length > 0 ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.sortBy ||
+    filters.sortOrder
+  )
 })
 
-const statusOptions = [
-  { title: 'Pending', value: 'pending' },
-  { title: 'In Progress', value: 'in-progress' },
-  { title: 'Completed', value: 'completed' }
-]
 
-const priorityOptions = [
-  { title: 'Low', value: 'low' },
-  { title: 'Medium', value: 'medium' },
-  { title: 'High', value: 'high' }
-]
-
-const sortOptions = [
-  { title: 'Created Date', value: 'createdAt' },
-  { title: 'Updated Date', value: 'updatedAt' },
-  { title: 'Title', value: 'title' },
-  { title: 'Priority', value: 'priority' },
-  { title: 'Status', value: 'status' }
-]
-
-const orderOptions = [
-  { title: 'Newest First', value: 'desc' },
-  { title: 'Oldest First', value: 'asc' }
-]
-
-function updateFilters() {
-  // When basic filters change, update the task store with combined filters
-  const combinedFiltersForUpdate = {
+function updateFilters(newFilters) {
+  if (newFilters) {
+    Object.assign(filters, newFilters)
+  }
+  
+  const filtersForUpdate = {
     ...filters,
-    // When using basic filters, clear any conflicting advanced filters
-    search: advancedFilters.search,
-    dateFrom: advancedFilters.dateFrom,
-    dateTo: advancedFilters.dateTo,
     // Use arrays for multiple selections
-    statusArray: filters.status ? [filters.status] : advancedFilters.status,
-    priorityArray: filters.priority ? [filters.priority] : advancedFilters.priority,
-    assignee: advancedFilters.assignee,
-    tags: advancedFilters.tags
-  }
-
-  // If we're using the basic filter for status or priority, clear the advanced one
-  if (filters.status) {
-    advancedFilters.status = []
+    statusArray: filters.status,
+    priorityArray: filters.priority
   }
   
-  if (filters.priority) {
-    advancedFilters.priority = []
-  }
-  
-  taskStore.updateFilters(combinedFiltersForUpdate)
+  taskStore.updateFilters(filtersForUpdate)
 }
 
-function updateAdvancedFilters(newFilters) {
-  Object.assign(advancedFilters, newFilters)
-  
-  // Clear basic filters that overlap with advanced filters
-  if (advancedFilters.status?.length > 0) filters.status = ''
-  if (advancedFilters.priority?.length > 0) filters.priority = ''
-  
-  // Update task store with combined filters
-  const combinedFiltersForUpdate = {
-    ...filters,
-    // Add advanced filter properties
-    search: advancedFilters.search,
-    dateFrom: advancedFilters.dateFrom,
-    dateTo: advancedFilters.dateTo,
-    // Use arrays for multiple selections
-    statusArray: advancedFilters.status,
-    priorityArray: advancedFilters.priority,
-    assignee: advancedFilters.assignee,
-    tags: advancedFilters.tags
-  }
-  
-  taskStore.updateFilters(combinedFiltersForUpdate)
-}
 
 function onAdvancedExport() {
   showExportDialog.value = true
@@ -388,48 +362,6 @@ function handleExportCreated(exportRecord) {
   }
 }
 
-function handleExportDownload(exportId) {
-  // Find the export in the store
-  const exportItem = exportStore.exports.find(exp => exp._id === exportId)
-  if (exportItem && exportItem.filename) {
-    // Trigger the download through the store
-    exportStore.downloadExport(exportId, exportItem.filename)
-      .catch(error => {
-        console.error('Download failed:', error)
-        // Error handling is managed by the store and displayed in the ExportProgress component
-      })
-  }
-}
-
-function handleExportCancel(exportId) {
-  exportStore.cancelExport(exportId)
-    .then(() => {
-      console.log('Export successfully cancelled')
-      // The UI will update automatically via the socket connection
-    })
-    .catch(error => {
-      console.error('Failed to cancel export:', error)
-    })
-}
-
-function handleExportRetry(exportId) {
-  exportStore.retryExport(exportId)
-    .then(() => {
-      console.log('Export retry initiated')
-      // The UI will update automatically via the socket connection
-      
-      // Scroll to active exports section if it exists
-      nextTick(() => {
-        const activeExportsElement = document.querySelector('[data-test="active-exports"]')
-        if (activeExportsElement) {
-          activeExportsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      })
-    })
-    .catch(error => {
-      console.error('Failed to retry export:', error)
-    })
-}
 
 function editTask(task) {
   selectedTask.value = task
@@ -506,5 +438,339 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Add any component-specific styles here */
+/* Beautiful Empty State Styling */
+.empty-state-container {
+  min-height: 400px;
+  background: linear-gradient(135deg, rgba(var(--v-theme-surface-variant), 0.3) 0%, rgba(var(--v-theme-primary), 0.05) 100%);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.empty-state-container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.1) 0%, transparent 70%);
+  animation: shimmer 6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+}
+
+.empty-state-illustration {
+  position: relative;
+  z-index: 2;
+}
+
+.empty-folder {
+  position: relative;
+  display: inline-block;
+  animation: gentle-float 3s ease-in-out infinite;
+}
+
+@keyframes gentle-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.folder-shine {
+  position: absolute;
+  top: 20%;
+  left: 30%;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(8px);
+  animation: shine 2s ease-in-out infinite alternate;
+}
+
+@keyframes shine {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.floating-documents {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+}
+
+.document {
+  position: absolute;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-2deg);
+  }
+}
+
+.doc-1 {
+  top: 10%;
+  left: 70%;
+  animation-delay: -1s;
+}
+
+.doc-2 {
+  top: 60%;
+  left: 80%;
+  animation-delay: -2s;
+}
+
+.doc-3 {
+  top: 70%;
+  left: 15%;
+  animation-delay: -3s;
+}
+
+.document:hover {
+  animation-play-state: paused;
+  transform: scale(1.1);
+}
+
+.document .v-icon {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.document:hover .v-icon {
+  transform: scale(1.2);
+}
+
+/* Empty state content styling */
+.empty-state-container .text-h5 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.empty-state-container .text-body-1 {
+  line-height: 1.6;
+}
+
+/* Button animations in empty state */
+.empty-state-container .v-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.empty-state-container .v-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive empty state */
+@media (max-width: 600px) {
+  .empty-state-container {
+    min-height: 350px;
+    padding: 32px 16px;
+  }
+  
+  .floating-documents {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .empty-folder .v-icon {
+    font-size: 60px !important;
+  }
+}
+
+/* Clean Search Bar Styling */
+.search-container {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-outline), 0.2);
+  border-radius: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.search-wrapper:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+
+.search-wrapper:focus-within {
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.2);
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.search-input-container {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.search-icon {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  flex-shrink: 0;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 16px;
+  font-weight: 400;
+  flex-grow: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.search-input:focus,
+.search-input:not(:placeholder-shown) {
+  text-align: left;
+}
+
+.search-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  text-align: left;
+}
+
+.search-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.clear-btn,
+.filter-btn {
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  transition: color 0.2s ease;
+}
+
+.clear-btn:hover,
+.filter-btn:hover {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* Badge positioning fix */
+.v-badge {
+  position: relative;
+}
+
+.v-badge .v-badge__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Filters Section */
+.v-expansion-panels {
+  background: rgba(var(--v-theme-surface), 0.9);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.v-expansion-panel {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
+
+.v-expansion-panel:last-child {
+  border-bottom: none;
+}
+
+.v-expansion-panel-title {
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: var(--v-theme-primary);
+  font-weight: 500;
+}
+
+.v-expansion-panel-text {
+  background: rgba(var(--v-theme-surface), 0.9);
+}
+
+/* Task Item Styling */
+.task-item {
+  background: rgba(var(--v-theme-surface), 0.9);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.task-item:hover {
+  transform: translateY(-2px);
+}
+
+.task-title {
+  color: var(--v-theme-on-surface);
+  font-weight: 600;
+}
+
+.task-meta {
+  margin-top: 8px;
+}
+
+.task-meta .v-chip {
+  height: 24px;
+  font-size: 0.875rem;
+}
+
+/* Pagination Styling */
+.v-pagination {
+  .v-pagination__item {
+    border-radius: 8px;
+    transition: background 0.3s ease;
+  }
+
+  .v-pagination__item:hover {
+    background: rgba(var(--v-theme-primary), 0.1);
+  }
+
+  .v-pagination__item--active {
+    background: var(--v-theme-primary);
+    color: white;
+  }
+}
 </style>
