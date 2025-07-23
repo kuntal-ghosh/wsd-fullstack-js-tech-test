@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 import { connectMongoDB } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import apiRoutes, { setSocketHandlers } from './routes/api.js';
+import exportRoutes, { setSocketHandlers as setExportSocketHandlers } from './routes/exportRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import SocketHandlers from './sockets/socketHandlers.js';
 import AnalyticsService from './services/analyticsService.js';
@@ -39,6 +40,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api', apiRoutes);
+app.use('/api', exportRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -48,6 +50,7 @@ app.get('/', (req, res) => {
     endpoints: {
       tasks: '/api/tasks',
       analytics: '/api/analytics',
+      exports: '/api/exports',
       health: '/api/health'
     }
   });
@@ -60,6 +63,7 @@ const socketHandlers = new SocketHandlers(io);
 
 // Connect socket handlers to API routes for real-time updates
 setSocketHandlers(socketHandlers);
+setExportSocketHandlers(socketHandlers);
 
 /**
  * Handles graceful server shutdown on SIGTERM/SIGINT signals

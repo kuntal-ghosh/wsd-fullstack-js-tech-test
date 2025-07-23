@@ -73,6 +73,7 @@ taskSchema.index({ createdAt: -1 });
 
 /**
  * Pre-save middleware to automatically set completedAt when status changes to completed
+ * and invalidate export caches when task data changes
  * @param {Function} next - Mongoose next function
  */
 taskSchema.pre('save', function(next) {
@@ -83,7 +84,69 @@ taskSchema.pre('save', function(next) {
       this.completedAt = null;
     }
   }
+
+  // Invalidate export caches when task data changes
+  if (this.isModified()) {
+    // Import ExportCacheService dynamically to avoid circular dependencies
+    import('../services/exportCacheService.js').then(({ default: ExportCacheService }) => {
+      // Invalidate all export caches since task data has changed
+      ExportCacheService.invalidateAllExportCaches().catch(error => {
+        console.error('Failed to invalidate export caches:', error.message);
+      });
+    }).catch(error => {
+      console.error('Failed to import ExportCacheService:', error.message);
+    });
+  }
+
   next();
+});
+
+/**
+ * Post-remove middleware to invalidate export caches when tasks are deleted
+ * @param {Function} next - Mongoose next function
+ */
+taskSchema.post('remove', function() {
+  // Import ExportCacheService dynamically to avoid circular dependencies
+  import('../services/exportCacheService.js').then(({ default: ExportCacheService }) => {
+    // Invalidate all export caches since task data has changed
+    ExportCacheService.invalidateAllExportCaches().catch(error => {
+      console.error('Failed to invalidate export caches after task deletion:', error.message);
+    });
+  }).catch(error => {
+    console.error('Failed to import ExportCacheService:', error.message);
+  });
+});
+
+/**
+ * Post-deleteOne middleware to invalidate export caches when tasks are deleted
+ * @param {Function} next - Mongoose next function
+ */
+taskSchema.post('deleteOne', function() {
+  // Import ExportCacheService dynamically to avoid circular dependencies
+  import('../services/exportCacheService.js').then(({ default: ExportCacheService }) => {
+    // Invalidate all export caches since task data has changed
+    ExportCacheService.invalidateAllExportCaches().catch(error => {
+      console.error('Failed to invalidate export caches after task deletion:', error.message);
+    });
+  }).catch(error => {
+    console.error('Failed to import ExportCacheService:', error.message);
+  });
+});
+
+/**
+ * Post-deleteMany middleware to invalidate export caches when multiple tasks are deleted
+ * @param {Function} next - Mongoose next function
+ */
+taskSchema.post('deleteMany', function() {
+  // Import ExportCacheService dynamically to avoid circular dependencies
+  import('../services/exportCacheService.js').then(({ default: ExportCacheService }) => {
+    // Invalidate all export caches since task data has changed
+    ExportCacheService.invalidateAllExportCaches().catch(error => {
+      console.error('Failed to invalidate export caches after bulk task deletion:', error.message);
+    });
+  }).catch(error => {
+    console.error('Failed to import ExportCacheService:', error.message);
+  });
 });
 
 /**

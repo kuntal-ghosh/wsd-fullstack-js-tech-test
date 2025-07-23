@@ -175,6 +175,119 @@ class ApiClient {
   async getHealth() {
     return this.get('/health')
   }
+
+  /**
+   * Retrieves exports with optional parameters
+   * @async
+   * @param {Object} [params={}] - Query parameters for pagination and filtering
+   * @returns {Promise<Object>} Exports list response
+   */
+  async getExports(params = {}) {
+    return this.get('/exports', params)
+  }
+
+  /**
+   * Retrieves a specific export by ID
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Export data
+   */
+  async getExport(id) {
+    return this.get(`/exports/${id}`)
+  }
+
+  /**
+   * Creates a new export request
+   * @async
+   * @param {Object} exportConfig - Export configuration
+   * @returns {Promise<Object>} Created export response
+   */
+  async createExport(exportConfig) {
+    return this.post('/exports', exportConfig)
+  }
+
+  /**
+   * Cancels an export by ID
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Cancellation response
+   */
+  async cancelExport(id) {
+    return this.delete(`/exports/${id}`)
+  }
+
+  /**
+   * Retries a failed export
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Retry response
+   */
+  async retryExport(id) {
+    return this.post(`/exports/${id}/retry`)
+  }
+
+  /**
+   * Gets the status of a specific export
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Export status response
+   */
+  async getExportStatus(id) {
+    return this.get(`/exports/${id}/status`)
+  }
+
+  /**
+   * Downloads an export file
+   * @async
+   * @param {string} id - Export ID
+   * @param {Object} [options={}] - Download options
+   * @returns {Promise<Response>} Download response
+   */
+  async downloadExport(id, options = {}) {
+    const url = `${this.baseURL}/exports/${id}/download`
+    const config = {
+      headers: {
+        ...options.headers
+      },
+      ...options
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+          errorData.message || `Download failed! status: ${response.status}`
+        )
+      }
+
+      return response
+    } catch (error) {
+      console.error('Export download failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Retrieves export history with optional filtering
+   * @async
+   * @param {Object} [params={}] - Query parameters for filtering history
+   * @returns {Promise<Object>} Export history response
+   */
+  async getExportHistory(params = {}) {
+    return this.get('/exports/history', params)
+  }
+
+  /**
+   * Deletes an export by ID
+   * @async
+   * @param {string} id - Export ID
+   * @returns {Promise<Object>} Deletion response
+   */
+  async deleteExport(id) {
+    return this.delete(`/exports/${id}`)
+  }
 }
 
 export default new ApiClient()

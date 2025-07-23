@@ -12,7 +12,13 @@ import { io } from 'socket.io-client'
  */
 const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
   autoConnect: false,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  timeout: 5000,
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 5,
+  maxReconnectionAttempts: 5,
+  forceNew: false
 })
 
 socket.on('connect', () => {

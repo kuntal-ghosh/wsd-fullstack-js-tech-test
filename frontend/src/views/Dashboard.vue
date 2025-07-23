@@ -69,6 +69,12 @@
     </v-row>
 
     <v-row class="mt-4">
+      <v-col cols="12">
+        <export-metrics-widget class="mb-4" />
+      </v-col>
+    </v-row>
+
+    <v-row>
       <v-col cols="12" md="8">
         <quick-task-list />
       </v-col>
@@ -88,11 +94,13 @@ import TaskStatusChart from '../components/TaskStatusChart.vue'
 import TaskPriorityChart from '../components/TaskPriorityChart.vue'
 import QuickTaskList from '../components/QuickTaskList.vue'
 import RecentActivity from '../components/RecentActivity.vue'
+import ExportMetricsWidget from '../components/ExportMetricsWidget.vue'
 
 const analyticsStore = useAnalyticsStore()
 const taskStore = useTaskStore()
 
 onMounted(() => {
+  analyticsStore.fetchAnalytics()
   taskStore.fetchTasks({ limit: 5 })
 })
 </script>

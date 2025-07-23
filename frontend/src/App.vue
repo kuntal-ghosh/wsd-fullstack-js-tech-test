@@ -57,6 +57,12 @@
       @clear-all="clearAllNotifications"
       @remove="removeNotification"
     />
+
+    <!-- Toast notifications -->
+    <toast-container />
+
+    <!-- Global loader for downloads -->
+    <global-loader />
   </v-app>
 </template>
 
@@ -79,12 +85,16 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAnalyticsStore } from './stores/analyticsStore.js'
 import { useTaskStore } from './stores/taskStore.js'
+import { useExportStore } from './stores/exportStore.js'
 import ConnectionStatus from './components/ConnectionStatus.vue'
 import NotificationDrawer from './components/NotificationDrawer.vue'
+import ToastContainer from './components/ToastContainer.vue'
+import GlobalLoader from './components/GlobalLoader.vue'
 
 const theme = useTheme()
 const analyticsStore = useAnalyticsStore()
 const taskStore = useTaskStore()
+const exportStore = useExportStore()
 
 const drawer = ref(false)
 const showNotifications = ref(false)
@@ -124,13 +134,14 @@ function removeNotification(id) {
 onMounted(() => {
   analyticsStore.initializeSocketListeners()
   taskStore.initializeSocketListeners()
+  exportStore.initializeSocketListeners()
   analyticsStore.connect()
-  analyticsStore.fetchAnalytics()
 })
 
 onUnmounted(() => {
   analyticsStore.cleanup()
   taskStore.cleanup()
+  exportStore.cleanup()
   analyticsStore.disconnect()
 })
 </script>

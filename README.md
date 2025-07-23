@@ -9,7 +9,11 @@ A real-time task analytics dashboard built with Vue.js 3, Node.js, MongoDB, and 
 ### Backend Features
 - ✅ **RESTful API** with Express.js for task CRUD operations
 - ✅ **MongoDB Integration** with Mongoose for data persistence
-- ✅ **Redis Caching** for individual task lookups (GET /tasks/:id)
+- ✅ **Advanced Redis Caching** with multi-layer cache strategy
+  - Individual task lookups (5 min TTL)
+  - Analytics metrics (10 sec TTL)
+  - Export results (1 hour TTL) with circuit breaker pattern
+- ✅ **Task Export System** with CSV/JSON formats and advanced filtering
 - ✅ **Socket.IO** for real-time analytics and notifications
 - ✅ **Analytics Engine** calculating metrics in real-time
 - ✅ **Task Management** with status and priority tracking
@@ -22,7 +26,8 @@ A real-time task analytics dashboard built with Vue.js 3, Node.js, MongoDB, and 
 - ✅ **Pinia** for state management
 - ✅ **Real-time Updates** via Socket.IO client
 - ✅ **Analytics Dashboard** with live charts
-- ✅ **Task Management** with filtering and pagination
+- ✅ **Advanced Task Management** with filtering, pagination, and export
+- ✅ **Export Interface** with format selection and progress tracking
 - ✅ **Responsive Design** for desktop and mobile
 - ✅ **Dark Mode** support
 - ✅ **Code Coverage** with Vitest and detailed reporting
@@ -178,6 +183,14 @@ No authentication required for this technical assessment.
 |--------|----------|-------------|
 | GET | `/analytics` | Get task analytics and metrics |
 
+#### Export
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/export` | Generate task export with filtering |
+| GET | `/export/:id` | Get export status and download link |
+| GET | `/export/:id/download` | Download generated export file |
+
 #### Health
 
 | Method | Endpoint | Description |
@@ -203,6 +216,21 @@ curl -X POST http://localhost:3001/api/tasks \
   }'
 ```
 
+#### POST /export
+```bash
+curl -X POST http://localhost:3001/api/export \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "csv",
+    "filters": {
+      "status": "completed",
+      "priority": "high",
+      "dateFrom": "2024-01-01",
+      "dateTo": "2024-12-31"
+    }
+  }'
+```
+
 #### PUT /tasks/:id
 ```bash
 curl -X PUT http://localhost:3001/api/tasks/123456 \
@@ -216,6 +244,9 @@ curl -X PUT http://localhost:3001/api/tasks/123456 \
 - `limit`: Items per page (default: 10)
 - `status`: Filter by status (pending, in-progress, completed)
 - `priority`: Filter by priority (low, medium, high)
+- `search`: Text search across title and description
+- `dateFrom`: Filter tasks from this date (ISO string)
+- `dateTo`: Filter tasks until this date (ISO string)
 - `sortBy`: Sort field (createdAt, updatedAt, title, priority, status)
 - `sortOrder`: Sort direction (asc, desc)
 
@@ -247,6 +278,7 @@ curl -X PUT http://localhost:3001/api/tasks/123456 \
 #### Server → Client
 - `analytics-update`: Real-time analytics data
 - `task-update`: Task CRUD notifications
+- `export-update`: Export progress and completion status
 - `notification`: System notifications
 - `connect/disconnect`: Connection status
 
@@ -274,6 +306,7 @@ The dashboard tracks:
 - **MetricCard**: Display key performance indicators
 - **TaskList**: Paginated task listing with filters
 - **TaskFormDialog**: Create/edit task modal
+- **ExportDialog**: Export configuration and progress tracking
 - **TaskStatusChart**: Pie chart for status distribution
 - **TaskPriorityChart**: Bar chart for priority distribution
 - **RecentActivity**: Live activity feed
@@ -292,6 +325,8 @@ REDIS_HOST=localhost
 REDIS_PORT=6380
 SOCKET_IO_CORS_ORIGIN=http://localhost:5173
 CORS_ORIGIN=http://localhost:5173
+EXPORT_CACHE_TTL=3600
+EXPORT_FILE_TTL=86400
 ```
 
 #### Frontend (.env)
@@ -351,7 +386,14 @@ The `docker-compose.yml` includes MongoDB and Redis services. For full container
 
 ## 🔍 Performance Optimizations
 
-- **Redis Caching**: Individual task lookups cached for 5 minutes
+- **Multi-layer Redis Caching**:
+  - Individual task lookups (5 min TTL)
+  - Analytics metrics (10 sec TTL)
+  - Export results (1 hour TTL) with circuit breaker pattern
+- **Export Optimization**:
+  - SHA256-based cache keys for consistent results
+  - 10MB size limit with automatic cleanup
+  - Circuit breaker prevents cascade failures
 - **MongoDB Indexing**: Optimized queries for status, priority, and dates
 - **Pagination**: Efficient handling of large task lists
 - **Real-time Throttling**: Analytics updates limited to prevent spam

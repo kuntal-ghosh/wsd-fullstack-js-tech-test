@@ -9,11 +9,14 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx",
+    "lint:check": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint src/ --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write ."
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "lodash-es": "^4.17.21",
     "pinia": "^3.0.3",
     "sass": "^1.89.2",
     "socket.io-client": "^4.8.1",

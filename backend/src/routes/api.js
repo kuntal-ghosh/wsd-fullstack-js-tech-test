@@ -6,6 +6,7 @@
 import express from 'express';
 import Task from '../models/Task.js';
 import AnalyticsService from '../services/analyticsService.js';
+import TaskFilterService from '../services/taskFilterService.js';
 import { redisClient } from '../config/redis.js';
 
 const router = express.Router();
@@ -35,46 +36,71 @@ export const setSocketHandlers = (handlers) => {
  * @param {number} [req.query.limit=10] - Number of tasks per page
  * @param {string} [req.query.status] - Filter by task status
  * @param {string} [req.query.priority] - Filter by task priority
+ * @param {string} [req.query.search] - Text search across title and description
+ * @param {string} [req.query.dateFrom] - Filter tasks from this date (ISO string)
+ * @param {string} [req.query.dateTo] - Filter tasks until this date (ISO string)
  * @param {string} [req.query.sortBy=createdAt] - Field to sort by
  * @param {string} [req.query.sortOrder=desc] - Sort order (asc/desc)
  * @returns {Object} Paginated tasks with metadata
  */
 router.get('/tasks', async (req, res, next) => {
   try {
+    // Parse pagination parameters with defaults
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 10;
+
+    // Ensure positive values for pagination
+    page = Math.max(1, page);
+    limit = Math.max(1, Math.min(limit, 1000)); // Add upper limit for safety
+
+    // Extract all possible filter parameters from query
     const {
-      page = 1,
-      limit = 10,
       status,
       priority,
+      search,
+      dateFrom,
+      dateTo,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
 
-    const query = {};
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
+    // Sanitize and build filter query using TaskFilterService
+    // This handles validation and sanitization of all filter parameters
+    const filters = TaskFilterService.sanitizeFilters({
+      status,
+      priority,
+      search,
+      dateFrom,
+      dateTo
+    });
 
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    // Build MongoDB query and sort options using TaskFilterService
+    const query = TaskFilterService.buildFilterQuery(filters);
+    const sort = TaskFilterService.buildSortOptions(sortBy, sortOrder);
 
+    // Execute query with pagination
     const tasks = await Task.find(query)
       .sort(sort)
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit)
       .exec();
 
+    // Get total count for pagination
     const total = await Task.countDocuments(query);
 
+    // Return formatted response
     res.json({
       success: true,
       data: {
         tasks,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page,
+          limit,
           total,
           pages: Math.ceil(total / limit)
-        }
+        },
+        // Include applied filters in response for transparency
+        appliedFilters: filters
       }
     });
   } catch (error) {
@@ -276,6 +302,22 @@ router.get('/health', (req, res) => {
     message: 'API is healthy',
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * GET /health/ping - Ultra lightweight connection test endpoint
+ * @name ConnectionPing
+ * @function
+ * @returns {string} Simple OK response for connectivity checks
+ */
+router.get('/health/ping', (req, res) => {
+  // Set cache control headers to prevent caching
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
+  // Return minimal response for quick network checking
+  res.send('OK');
 });
 
 export default router;
