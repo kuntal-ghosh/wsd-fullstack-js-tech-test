@@ -60,6 +60,9 @@
 
     <!-- Toast notifications -->
     <toast-container />
+
+    <!-- Global loader for downloads -->
+    <global-loader />
   </v-app>
 </template>
 
@@ -86,6 +89,7 @@ import { useExportStore } from './stores/exportStore.js'
 import ConnectionStatus from './components/ConnectionStatus.vue'
 import NotificationDrawer from './components/NotificationDrawer.vue'
 import ToastContainer from './components/ToastContainer.vue'
+import GlobalLoader from './components/GlobalLoader.vue'
 
 const theme = useTheme()
 const analyticsStore = useAnalyticsStore()

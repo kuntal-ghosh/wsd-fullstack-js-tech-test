@@ -8,7 +8,12 @@
 -->
 
 <template>
-  <v-dialog v-model="dialog" max-width="600" data-test="export-dialog">
+  <v-dialog
+    v-model="dialog"
+    max-width="600"
+    data-test="export-dialog"
+    :persistent="!canCloseDialog"
+  >
     <v-card v-if="dialog" data-test="export-dialog-content">
       <v-card-title>Export Task Data</v-card-title>
 
@@ -99,6 +104,69 @@
           </div>
         </v-expand-transition>
 
+        <!-- Export Progress -->
+        <v-card
+          v-if="(exporting || currentExportStatus) && currentExportId"
+          variant="outlined"
+          class="mt-4"
+          data-test="export-progress"
+        >
+          <v-card-text>
+            <div class="d-flex align-center">
+              <v-icon
+                :color="
+                  currentExportStatus?.status === 'failed'
+                    ? 'error'
+                    : currentExportStatus?.status === 'completed'
+                      ? 'success'
+                      : 'primary'
+                "
+                class="mr-3"
+              >
+                {{
+                  currentExportStatus?.status === 'failed'
+                    ? 'mdi-alert-circle'
+                    : currentExportStatus?.status === 'completed'
+                      ? 'mdi-check-circle'
+                      : 'mdi-cog'
+                }}
+              </v-icon>
+              <div class="flex-grow-1">
+                <div class="text-body-2 font-weight-medium">
+                  {{
+                    exporting && !currentExportStatus
+                      ? 'Initializing export...'
+                      : currentExportStatus?.status === 'processing'
+                        ? `Processing export... ${Math.round(currentExportStatus.progress || 0)}%`
+                        : currentExportStatus?.status === 'completed'
+                          ? 'Export completed successfully!'
+                          : currentExportStatus?.status === 'failed'
+                            ? 'Export failed'
+                            : 'Export in progress...'
+                  }}
+                </div>
+                <v-progress-linear
+                  v-if="
+                    currentExportStatus?.status === 'processing' &&
+                    currentExportStatus?.progress
+                  "
+                  :model-value="currentExportStatus.progress"
+                  color="primary"
+                  height="4"
+                  class="mt-2"
+                />
+                <v-progress-linear
+                  v-else-if="exporting && !currentExportStatus?.status"
+                  indeterminate
+                  color="primary"
+                  height="4"
+                  class="mt-2"
+                />
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+
         <!-- Empty Dataset Warning -->
         <v-alert
           v-if="recordCount === 0"
@@ -114,8 +182,13 @@
 
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn variant="text" data-test="cancel-button" @click="closeDialog">
-          Cancel
+        <v-btn
+          variant="text"
+          data-test="cancel-button"
+          :disabled="!canCloseDialog"
+          @click="closeDialog"
+        >
+          {{ canCloseDialog ? 'Cancel' : 'Close' }}
         </v-btn>
         <v-btn
           color="primary"
@@ -132,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useTaskStore } from '../stores/taskStore'
 import { useExportStore } from '../stores/exportStore'
 
@@ -167,6 +240,7 @@ const validationErrors = ref({
   format: [],
   filename: []
 })
+const currentExportId = ref(null)
 
 // Two-way binding for dialog state
 const dialog = computed({
@@ -181,6 +255,45 @@ const recordCount = computed(() => {
 
 const canExport = computed(() => {
   return recordCount.value > 0 && !exporting.value
+})
+
+const canCloseDialog = computed(() => {
+  return !exporting.value && currentExportStatus.value?.status !== 'processing'
+})
+
+const currentExportStatus = computed(() => {
+  if (!currentExportId.value) {
+    console.log('Dialog: No currentExportId set')
+    return null
+  }
+
+  console.log('Dialog: Looking for export ID:', currentExportId.value)
+  console.log(
+    'Dialog: Available exports:',
+    exportStore.exports.map((exp) => ({
+      _id: exp._id,
+      id: exp.id,
+      status: exp.status
+    }))
+  )
+
+  const status = exportStore.exports.find(
+    (exp) =>
+      exp._id === currentExportId.value || exp.id === currentExportId.value
+  )
+  if (status) {
+    console.log('Dialog: Found export status:', {
+      id: currentExportId.value,
+      status: status.status,
+      progress: status.progress
+    })
+  } else {
+    console.log(
+      'Dialog: Export not found in store for ID:',
+      currentExportId.value
+    )
+  }
+  return status
 })
 
 const errorTitle = computed(() => {
@@ -261,6 +374,10 @@ const activeFiltersDescription = computed(() => {
 
 // Methods
 function closeDialog() {
+  if (!canCloseDialog.value) {
+    console.log('Cannot close dialog - export or download in progress')
+    return
+  }
   dialog.value = false
   emit('cancel')
 }
@@ -403,18 +520,84 @@ async function initiateExport() {
       filters: props.filters,
       filename: customFilename.value || undefined
     }
+    console.log('🚀 ~ initiateExport ~ exportParams:', exportParams)
 
     const exportRecord = await exportStore.createExport(exportParams)
+    console.log('🚀 ~ initiateExport ~ exportRecord:', exportRecord)
+
+    // Track export ID to monitor progress
+    const exportId = exportRecord._id || exportRecord.id
+    currentExportId.value = exportId
+    console.log('Dialog tracking export ID:', exportId)
+    console.log('Full export record:', exportRecord)
 
     emit('export-created', exportRecord)
-    dialog.value = false
+
+    // Don't close dialog - wait for download completion
   } catch (err) {
     parseErrorResponse(err)
     console.error('Export failed:', err)
-  } finally {
     exporting.value = false
   }
 }
+
+// Watch export status changes
+watch(
+  () => currentExportStatus.value?.status,
+  async (newStatus, oldStatus) => {
+    if (!currentExportStatus.value) return
+
+    console.log('Export status changed:', {
+      exportId: currentExportId.value,
+      oldStatus,
+      newStatus,
+      progress: currentExportStatus.value.progress
+    })
+
+    if (newStatus === 'processing') {
+      exporting.value = false
+    } else if (newStatus === 'completed') {
+      exporting.value = false
+      console.log('Export completed, closing dialog in 2 seconds')
+
+      // Close dialog after showing completion message briefly
+      setTimeout(() => {
+        if (dialog.value) {
+          console.log('Closing dialog after export completion')
+          dialog.value = false
+          emit('cancel')
+        }
+      }, 2000) // Show completion for 2 seconds
+    } else if (newStatus === 'failed') {
+      exporting.value = false
+      error.value = currentExportStatus.value.error || 'Export failed'
+      errorCode.value = 'EXPORT_PROCESSING_ERROR'
+    }
+  }
+)
+
+// Initialize socket listeners when component mounts
+onMounted(() => {
+  console.log('ExportDialog mounted, initializing socket listeners')
+  exportStore.initializeSocketListeners()
+
+  // Debug: Watch all exports
+  watch(
+    () => exportStore.exports,
+    (exports) => {
+      console.log(
+        'All exports in store:',
+        exports.map((exp) => ({
+          id: exp._id,
+          status: exp.status,
+          progress: exp.progress,
+          filename: exp.filename
+        }))
+      )
+    },
+    { deep: true, immediate: true }
+  )
+})
 
 // Clear form on close
 watch(
@@ -428,6 +611,8 @@ watch(
       errorDetails.value = null
       errorCode.value = null
       validationErrors.value = { format: [], filename: [] }
+      currentExportId.value = null
+      exporting.value = false
     }
   }
 )

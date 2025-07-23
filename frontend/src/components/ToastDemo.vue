@@ -159,63 +159,22 @@ const simulatingStatus = ref(false)
 
 // Methods
 function showSuccessToast() {
-  toastStore.showSuccess('Operation completed successfully!', {
-    actions: [
-      {
-        label: 'View Details',
-        handler: () => console.log('View details clicked')
-      }
-    ]
-  })
+  toastStore.showSuccess('Operation completed successfully!')
 }
 
 function showErrorToast() {
-  toastStore.showError('Something went wrong. Please try again.', {
-    actions: [
-      {
-        label: 'Retry',
-        handler: () => {
-          toastStore.showInfo('Retrying operation...')
-        }
-      },
-      {
-        label: 'Report Bug',
-        handler: () => console.log('Report bug clicked')
-      }
-    ]
-  })
+  toastStore.showError('Something went wrong. Please try again.')
 }
 
 function showWarningToast() {
-  toastStore.showWarning('This action cannot be undone. Are you sure?', {
-    actions: [
-      {
-        label: 'Continue',
-        handler: () => {
-          toastStore.showSuccess('Action completed!')
-        }
-      },
-      {
-        label: 'Cancel',
-        handler: () => {
-          toastStore.showInfo('Action cancelled')
-        }
-      }
-    ]
-  })
+  toastStore.showWarning('This action cannot be undone. Are you sure?', {})
 }
 
 function showInfoToast() {
   toastStore.showInfo(
     'Did you know you can export your data in multiple formats?',
     {
-      timeout: 6000,
-      actions: [
-        {
-          label: 'Learn More',
-          handler: () => console.log('Learn more clicked')
-        }
-      ]
+      timeout: 6000
     }
   )
 }
@@ -225,13 +184,7 @@ async function simulateExportFlow() {
 
   // Step 1: Export creation
   toastStore.showSuccess('Export request created successfully! Format: CSV', {
-    timeout: 3000,
-    actions: [
-      {
-        label: 'View Progress',
-        handler: () => console.log('View progress clicked')
-      }
-    ]
+    timeout: 3000
   })
 
   // Wait 2 seconds
@@ -241,19 +194,7 @@ async function simulateExportFlow() {
   toastStore.showSuccess(
     'Export "tasks-export.csv" completed! File size: 2.4 MB',
     {
-      timeout: 6000,
-      actions: [
-        {
-          label: 'Download Now',
-          handler: () => {
-            simulateDownloadFlow()
-          }
-        },
-        {
-          label: 'View Details',
-          handler: () => console.log('View export details')
-        }
-      ]
+      timeout: 6000
     }
   )
 
@@ -267,13 +208,7 @@ async function simulateDownloadFlow() {
   const _downloadToastId = toastStore.showInfo(
     'Starting download of tasks-export.csv...',
     {
-      timeout: 2000,
-      actions: [
-        {
-          label: 'Cancel',
-          handler: () => console.log('Download cancelled')
-        }
-      ]
+      timeout: 2000
     }
   )
 
@@ -282,13 +217,7 @@ async function simulateDownloadFlow() {
 
   // Step 2: Progress update (for large files)
   const progressToastId = toastStore.showInfo('Downloading... 50%', {
-    persistent: true,
-    actions: [
-      {
-        label: 'Hide',
-        handler: (toast) => toastStore.hideToast(toast.id)
-      }
-    ]
+    persistent: true
   })
 
   // Wait 2 seconds
@@ -296,14 +225,8 @@ async function simulateDownloadFlow() {
 
   // Step 3: Download completed
   toastStore.hideToast(progressToastId)
-  toastStore.showSuccess('Download completed successfully! File size: 2.4 MB', {
-    timeout: 5000,
-    actions: [
-      {
-        label: 'Download Again',
-        handler: () => simulateDownloadFlow()
-      }
-    ]
+  toastStore.showSuccess('Download completed successfully!', {
+    timeout: 5000
   })
 
   simulatingDownload.value = false

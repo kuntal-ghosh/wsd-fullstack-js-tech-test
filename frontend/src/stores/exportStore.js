@@ -22,6 +22,9 @@ export const useExportStore = defineStore('exports', () => {
   const downloadProgress = ref({})
   const autoHideTimer = ref(null)
   const pagination = ref({})
+  const downloadAttempts = ref({})
+  const progressToastIds = ref({})
+  const lastProgressUpdate = ref({})
 
   // Setup periodic refresh for auto-hide functionality
   if (typeof window !== 'undefined') {
@@ -92,27 +95,27 @@ export const useExportStore = defineStore('exports', () => {
    */
   function formatDateForAPI(date) {
     if (!date) return null
-    
+
     try {
       // If it's already a Date object
       if (date instanceof Date) {
         return date.toISOString()
       }
-      
+
       // If it's a string, try to parse it
       if (typeof date === 'string') {
         // If it's already an ISO string, return as is
         if (date.includes('T') && date.includes('Z')) {
           return date
         }
-        
+
         // If it's a date string like "2024-01-15", convert to ISO
         const parsedDate = new Date(date)
         if (!isNaN(parsedDate.getTime())) {
           return parsedDate.toISOString()
         }
       }
-      
+
       return null
     } catch (error) {
       console.warn('Failed to format date for API:', date, error)
@@ -161,10 +164,14 @@ export const useExportStore = defineStore('exports', () => {
     }
 
     // Remove empty or null values
-    Object.keys(sanitized).forEach(key => {
+    Object.keys(sanitized).forEach((key) => {
       const value = sanitized[key]
-      if (value === null || value === undefined || value === '' || 
-          (Array.isArray(value) && value.length === 0)) {
+      if (
+        value === null ||
+        value === undefined ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0)
+      ) {
         delete sanitized[key]
       }
     })
@@ -239,6 +246,9 @@ export const useExportStore = defineStore('exports', () => {
    * @returns {Promise<Object>} Created export response
    */
   async function createExport(exportConfig) {
+    // Prevent multiple simultaneous exports
+    if (loading.value) return null
+
     loading.value = true
     error.value = null
 
@@ -246,13 +256,25 @@ export const useExportStore = defineStore('exports', () => {
     const toastStore = useToastStore()
 
     try {
-      // Sanitize the export configuration, especially date formats
+      // Check for duplicate exports with same params in the last 30 seconds
+      const duplicateCheck = exports.value.find((exp) => {
+        const isRecent = Date.now() - new Date(exp.createdAt).getTime() < 30000
+        const sameFormat = exp.format === exportConfig.format
+        const sameFilters =
+          JSON.stringify(exp.filters) === JSON.stringify(exportConfig.filters)
+        return isRecent && sameFormat && sameFilters && exp.status !== 'failed'
+      })
+
+      if (duplicateCheck) {
+        toastStore.showWarning('Export already in progress')
+        return duplicateCheck
+      }
+
+      // Sanitize the export configuration
       const sanitizedConfig = {
         ...exportConfig,
         filters: sanitizeFiltersForAPI(exportConfig.filters || {})
       }
-
-      console.log('Creating export with sanitized config:', sanitizedConfig)
 
       const response = await apiClient.createExport(sanitizedConfig)
 
@@ -264,18 +286,9 @@ export const useExportStore = defineStore('exports', () => {
       // Add new export to the beginning of the list
       exports.value.unshift(response.data)
 
-      // Show success toast
+      // Show start toast (1/5)
       toastStore.showSuccess('🚀 Export Started!', {
-        timeout: 3000,
-        actions: [
-          {
-            label: 'View Progress',
-            color: 'white',
-            handler: () => {
-              console.log('Navigate to export:', response.data._id)
-            }
-          }
-        ]
+        timeout: 3000
       })
 
       return response.data
@@ -325,19 +338,7 @@ export const useExportStore = defineStore('exports', () => {
     downloadProgress.value[id] = { progress: 0, downloading: true }
     error.value = null
 
-    // Show starting download toast
-    const _downloadToastId = toastStore.showInfo('⬇️ Starting Download...', {
-      timeout: 2000,
-      actions: [
-        {
-          label: 'Cancel',
-          color: 'white',
-          handler: () => {
-            console.log('Download cancelled by user')
-          }
-        }
-      ]
-    })
+    // Don't show starting download toast - completion toast handles the flow
 
     console.log('Starting download for export:', id)
 
@@ -355,23 +356,7 @@ export const useExportStore = defineStore('exports', () => {
       const chunks = []
       let receivedLength = 0
 
-      // Show progress toast for large files
-      let progressToastId = null
-      if (contentLength > 1024 * 1024) {
-        // Files larger than 1MB
-        progressToastId = toastStore.showInfo('📥 Downloading...', {
-          persistent: true,
-          actions: [
-            {
-              label: 'Hide',
-              color: 'white',
-              handler: (toast) => {
-                toastStore.hideToast(toast.id)
-              }
-            }
-          ]
-        })
-      }
+      // Don't show download progress toasts - we only want the 5 milestone toasts
 
       while (true) {
         const { done, value } = await reader.read()
@@ -391,13 +376,7 @@ export const useExportStore = defineStore('exports', () => {
             totalLength: contentLength
           }
 
-          // Update progress toast for large files
-          if (progressToastId && progress % 10 === 0) {
-            // Update every 10%
-            toastStore.updateToast(progressToastId, {
-              message: `Downloading... ${progress}%`
-            })
-          }
+          // Don't update download progress toasts - we only want the 5 milestone toasts
         }
       }
 
@@ -426,10 +405,7 @@ export const useExportStore = defineStore('exports', () => {
         completed: true
       }
 
-      // Hide progress toast if it exists
-      if (progressToastId) {
-        toastStore.hideToast(progressToastId)
-      }
+      // No progress toast to hide since we removed them
 
       // Show success toast
       const fileSize = chunks.reduce((total, chunk) => total + chunk.length, 0)
@@ -438,17 +414,9 @@ export const useExportStore = defineStore('exports', () => {
           ? `${(fileSize / (1024 * 1024)).toFixed(1)} MB`
           : `${(fileSize / 1024).toFixed(1)} KB`
 
-      toastStore.showSuccess('✅ Download Complete!', {
-        timeout: 3000,
-        actions: [
-          {
-            label: 'Download Again',
-            color: 'white',
-            handler: () => {
-              downloadExport(id, filename)
-            }
-          }
-        ]
+      // Show download complete toast
+      toastStore.showSuccess('📥 Download Complete!', {
+        timeout: 4000
       })
     } catch (err) {
       error.value = err.message
@@ -669,7 +637,7 @@ export const useExportStore = defineStore('exports', () => {
    * @param {Object} data - Progress update data
    */
   function handleExportProgress(data) {
-    const { exportId, progress, status } = data
+    const { exportId, progress, status, timestamp } = data
     console.log(
       'Handling export progress in handleExportProgress:',
       exportId,
@@ -677,13 +645,65 @@ export const useExportStore = defineStore('exports', () => {
       status
     )
 
+    // Deduplicate progress events
+    const lastUpdate = lastProgressUpdate.value[exportId]
+    if (
+      lastUpdate &&
+      lastUpdate.progress === progress &&
+      lastUpdate.status === status
+    ) {
+      console.log('Duplicate progress event ignored:', exportId, progress)
+      return
+    }
+
+    // Store this update to prevent duplicates
+    lastProgressUpdate.value[exportId] = { progress, status, timestamp }
+
     const exportIndex = exports.value.findIndex((exp) => exp._id === exportId)
     if (exportIndex !== -1) {
       exports.value[exportIndex] = {
         ...exports.value[exportIndex],
         progress,
         status,
-        updatedAt: data.timestamp
+        updatedAt: timestamp
+      }
+
+      // Show progress toast for milestone percentages
+      if (status === 'processing' && typeof progress === 'number') {
+        showProgressToast(exportId, progress)
+      }
+    }
+  }
+
+  /**
+   * Shows progress toast for milestone percentages
+   * @function showProgressToast
+   * @param {string} exportId - Export ID
+   * @param {number} progress - Progress percentage
+   */
+  function showProgressToast(exportId, progress) {
+    const toastStore = useToastStore()
+    const roundedProgress = Math.round(progress)
+
+    // Show toasts at 25%, 50%, 75% milestones
+    const milestones = [25, 50, 75]
+
+    if (milestones.includes(roundedProgress)) {
+      // Check if we already showed this milestone
+      if (!progressToastIds.value[exportId]) {
+        progressToastIds.value[exportId] = new Set()
+      }
+
+      if (!progressToastIds.value[exportId].has(roundedProgress)) {
+        progressToastIds.value[exportId].add(roundedProgress)
+
+        toastStore.showInfo(`⚙️ Export Processing ${roundedProgress}%`, {
+          timeout: 3000
+        })
+
+        console.log(
+          `Showing progress toast: ${roundedProgress}% for export ${exportId}`
+        )
       }
     }
   }
@@ -797,6 +817,7 @@ export const useExportStore = defineStore('exports', () => {
             : `${(fileSize / 1024).toFixed(1)} KB`
           : 'Unknown size'
 
+        // Show completion toast (5/5)
         toastStore.showSuccess('🎉 Export Complete!', {
           timeout: 4000,
           actions: [
@@ -811,6 +832,14 @@ export const useExportStore = defineStore('exports', () => {
             }
           ]
         })
+
+        // Clean up progress tracking for this export
+        if (progressToastIds.value[exportId]) {
+          delete progressToastIds.value[exportId]
+        }
+        if (lastProgressUpdate.value[exportId]) {
+          delete lastProgressUpdate.value[exportId]
+        }
         break
       }
 
@@ -930,28 +959,15 @@ export const useExportStore = defineStore('exports', () => {
           : `${(fileSize / 1024).toFixed(1)} KB`
         : 'Unknown size'
 
-      toastStore.showSuccess(`🎉 Export Complete! (${_fileSizeFormatted})`, {
-        timeout: 6000,
-        actions: [
-          {
-            label: 'Download Now',
-            color: 'white',
-            handler: () => {
-              downloadExport(exportId, updatedExport.filename)
-            }
-          },
-          {
-            label: 'View Details',
-            color: 'white',
-            handler: () => {
-              console.log('View export details:', exportId)
-            }
-          }
-        ]
-      })
+      // Don't show duplicate completion toast - showStatusToast handles this
 
-      // Auto-download the completed export if it has a filename
-      if (updatedExport._id && updatedExport.downloadUrl) {
+      // Auto-download the completed export if it has a filename (prevent duplicate downloads)
+      if (
+        updatedExport._id &&
+        updatedExport.downloadUrl &&
+        !downloadAttempts.value[exportId]
+      ) {
+        downloadAttempts.value[exportId] = true
         console.log('Auto-downloading completed export:', exportId)
         console.log(
           'Export download URL:',
@@ -966,11 +982,18 @@ export const useExportStore = defineStore('exports', () => {
             )
           })
           .catch((error) => {
-            console.error('Auto-download failed for export:', exportId, error?.message)
+            console.error(
+              'Auto-download failed for export:',
+              exportId,
+              error?.message
+            )
             // Remove auto-hide timer on download error to keep progress visible
             if (exports.value[exportIndex]) {
               delete exports.value[exportIndex]._autoHideAfter
             }
+
+            // Reset download attempt flag so manual retry is possible
+            delete downloadAttempts.value[exportId]
 
             // Show error toast for auto-download failure
             toastStore.showWarning('⚠️ Auto-download Failed', {
@@ -1026,7 +1049,7 @@ export const useExportStore = defineStore('exports', () => {
                   toastStore.showInfo('🔄 Retry Started')
                 })
                 .catch((error) => {
-                  toastStore.showError('❌ Retry Failed',error?.message)
+                  toastStore.showError('❌ Retry Failed', error?.message)
                 })
             }
           },
@@ -1134,6 +1157,9 @@ export const useExportStore = defineStore('exports', () => {
    */
   function clearDownloadProgress(id) {
     delete downloadProgress.value[id]
+    delete downloadAttempts.value[id]
+    delete progressToastIds.value[id]
+    delete lastProgressUpdate.value[id]
   }
 
   /**

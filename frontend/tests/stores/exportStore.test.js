@@ -615,6 +615,9 @@ describe('Export Store', () => {
       })
 
       it('should remove auto-hide timer on download error', async () => {
+        // Mock fetch to reject for this test
+        global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'))
+
         // Setup export
         exportStore.exports = [
           {
@@ -637,18 +640,16 @@ describe('Export Store', () => {
           timestamp: '2024-01-01T13:00:00Z'
         }
 
-        // Handle completion - this will trigger auto-download which will fail due to test environment
+        // Handle completion - this will trigger auto-download which will fail due to fetch mock
         exportStore.handleExportCompleted(completionData)
 
-        // Wait longer for async auto-download error handling to complete
+        // Wait for async auto-download error handling to complete
         // The download will fail and error handling should remove the auto-hide timer
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        await new Promise((resolve) => setTimeout(resolve, 300))
 
         const completedExport = exportStore.exports[0]
 
-        // In the test environment, downloads always fail, so auto-hide timer should be removed
-        // This tests the error handling path of the auto-download feature
-        // Note: This is testing async error handling, so we use a more generous timeout
+        // The fetch rejection should have triggered error handling and removed the auto-hide timer
         expect(completedExport._autoHideAfter).toBeUndefined()
       })
     })

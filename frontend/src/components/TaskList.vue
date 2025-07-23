@@ -21,8 +21,8 @@
         class="mr-2"
         prepend-icon="mdi-download"
         data-test="export-button"
-        :disabled="taskStore.tasks.length === 0"
-        @click="showExportDialog = true"
+        :disabled="taskStore.tasks.length === 0 || exportStore.loading"
+        @click="onExportClick"
       >
         Export
       </v-btn>
@@ -349,18 +349,26 @@ function updateFilters(newFilters) {
   taskStore.updateFilters(filtersForUpdate)
 }
 
+function onExportClick() {
+  if (exportStore.loading) return
+  showExportDialog.value = true
+}
+
 function onAdvancedExport() {
+  if (exportStore.loading) return
   showExportDialog.value = true
 }
 
 function handleExportCreated(exportRecord) {
+  // Prevent multiple exports
+  if (!exportRecord || exportStore.loading) return
+
   // Close export dialog
   showExportDialog.value = false
 
   // Show notification if export was created successfully
-  if (exportRecord && exportRecord._id) {
+  if (exportRecord._id) {
     // We don't need to add to the exports list because the socket will handle that
-    // Display temporary success message or toast could be added here if needed
     console.log('Export created successfully:', exportRecord)
 
     // Scroll to the active exports section if it exists

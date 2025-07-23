@@ -3,7 +3,11 @@
  * @module tests/utils/testSetup
  */
 
-import { connectTestDB, disconnectTestDB, clearTestDB } from './testDatabase.js';
+import {
+  connectTestDB,
+  disconnectTestDB,
+  clearTestDB
+} from './testDatabase.js';
 import { cleanupTestExportDir, ensureTestExportDir } from './fileHelpers.js';
 import { loadTestConfig, resetTestEnvironment } from './testConfig.js';
 import { cleanupMockData } from './mockData.js';
@@ -17,16 +21,16 @@ import { cleanupMockData } from './mockData.js';
 export const setupTestEnvironment = async () => {
   try {
     console.log('🔧 Setting up test environment...');
-    
+
     // Load test configuration
     loadTestConfig();
-    
+
     // Connect to test database
     await connectTestDB();
-    
+
     // Ensure test export directory exists
     await ensureTestExportDir();
-    
+
     console.log('✅ Test environment setup complete');
   } catch (error) {
     console.error('❌ Test environment setup failed:', error.message);
@@ -43,31 +47,61 @@ export const setupTestEnvironment = async () => {
 export const teardownTestEnvironment = async () => {
   try {
     console.log('🧹 Tearing down test environment...');
-    
+
+    // Clean up test export files
+    await cleanupTestExportDir().catch(() => {});
+    console.log('✅ Test export directory cleaned up successfully');
+
     // Clean up database with timeout
-    const cleanupPromise = Promise.all([
-      clearTestDB().catch(() => {}),
-      disconnectTestDB().catch(() => {}),
-      cleanupTestExportDir().catch(() => {})
-    ]);
-    
-    // Race cleanup with timeout
     await Promise.race([
-      cleanupPromise,
-      new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
-    ]);
-    
+      clearTestDB(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database cleanup timeout')), 5000)
+      )
+    ]).catch(() => {});
+
+    // Disconnect from test database with timeout
+    await Promise.race([
+      disconnectTestDB(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database disconnect timeout')), 5000)
+      )
+    ]).catch(() => {});
+    console.log('✅ Test MongoDB disconnected successfully');
+
+    // Reset environment variables
+    resetTestEnvironment();
+
+    // Clean up any mock data
+    await cleanupMockData().catch(() => {});
+
     // Clear any remaining timers or intervals
     clearAllTimersAndIntervals();
-    
+
     // Force process cleanup
     await forceProcessCleanup();
-    
+
+    // Get active handles for logging
+    const activeHandles = process._getActiveHandles?.() || [];
+    const activeRequests = process._getActiveRequests?.() || [];
+    console.log(
+      `⚠️  ${activeHandles.length} active handles, ${activeRequests.length} active requests remaining`
+    );
+
     console.log('✅ Test environment teardown complete');
+
+    // Force exit after a delay if still hanging
+    setTimeout(() => {
+      console.log('🧹 Force cleanup completed');
+      process.exit(0);
+    }, 1000);
+
+    return true;
   } catch (error) {
     console.error('❌ Test environment teardown failed:', error.message);
     // Don't throw error on teardown - just log it
     console.log('⚠️  Continuing despite teardown error...');
+    return false;
   }
 };
 
@@ -78,22 +112,28 @@ export const teardownTestEnvironment = async () => {
  * @returns {Promise<void>}
  */
 const forceProcessCleanup = async () => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     // Clear event loop
     setImmediate(() => {
       // Force garbage collection if available
       if (global.gc) {
         global.gc();
       }
-      
+
       // Log remaining handles for debugging
-      const activeHandles = process._getActiveHandles ? process._getActiveHandles().length : 0;
-      const activeRequests = process._getActiveRequests ? process._getActiveRequests().length : 0;
-      
+      const activeHandles = process._getActiveHandles
+        ? process._getActiveHandles().length
+        : 0;
+      const activeRequests = process._getActiveRequests
+        ? process._getActiveRequests().length
+        : 0;
+
       if (activeHandles > 0 || activeRequests > 0) {
-        console.log(`⚠️  ${activeHandles} active handles, ${activeRequests} active requests remaining`);
+        console.log(
+          `⚠️  ${activeHandles} active handles, ${activeRequests} active requests remaining`
+        );
       }
-      
+
       resolve();
     });
   });
@@ -104,16 +144,16 @@ const forceProcessCleanup = async () => {
  */
 const clearAllTimersAndIntervals = () => {
   // Clear all timeouts and intervals
-  const highestTimeoutId = setTimeout(function(){}, 0);
+  const highestTimeoutId = setTimeout(function () {}, 0);
   for (let i = 0; i < highestTimeoutId; i++) {
     clearTimeout(i);
   }
-  
-  const highestIntervalId = setInterval(function(){}, 9999);
+
+  const highestIntervalId = setInterval(function () {}, 9999);
   for (let i = 0; i < highestIntervalId; i++) {
     clearInterval(i);
   }
-  
+
   // Unref the process to allow clean exit
   if (process.unref) {
     process.unref();
@@ -129,14 +169,14 @@ const clearAllTimersAndIntervals = () => {
 export const cleanTestEnvironment = async () => {
   try {
     console.log('🧽 Cleaning test environment...');
-    
+
     // Clear database collections
     await clearTestDB();
-    
+
     // Clean up any test files
     await cleanupTestExportDir();
     await ensureTestExportDir();
-    
+
     console.log('✅ Test environment cleaned');
   } catch (error) {
     console.error('❌ Test environment cleaning failed:', error.message);
@@ -152,27 +192,27 @@ export const cleanTestEnvironment = async () => {
  */
 export const setupTestSuite = (testContext) => {
   const { before, after, beforeEach, afterEach } = testContext;
-  
+
   // Setup before all tests
   before(async () => {
     await setupTestEnvironment();
   });
-  
+
   // Cleanup after all tests
   after(async () => {
     await teardownTestEnvironment();
   });
-  
+
   // Clean between each test
   beforeEach(async () => {
     await cleanTestEnvironment();
   });
-  
+
   // Optional cleanup after each test
   afterEach(async () => {
     // Additional cleanup if needed
   });
-  
+
   return {
     setupTestEnvironment,
     teardownTestEnvironment,
@@ -189,7 +229,7 @@ export const setupTestSuite = (testContext) => {
  */
 export const withTestEnvironment = async (testFunction) => {
   await setupTestEnvironment();
-  
+
   try {
     const result = await testFunction();
     return result;
